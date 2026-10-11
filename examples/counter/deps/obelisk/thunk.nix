@@ -1,6 +1,6 @@
 builtins.fetchGit {
   url = "https://github.com/obsidiansystems/obelisk.git";
-  rev = "899032f421dd8d34a7a6badab833df0d14f01ea9";
+  rev = "3d3ccbdc519070821965014771a202bf46c33ac0";
   # fetch them so the project builds exactly what its Obelisk revision built.
   submodules = true;
 }

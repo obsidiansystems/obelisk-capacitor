@@ -55,16 +55,29 @@ jobs:
           find bundle -type l | grep -q . && { echo 'symlink in bundle'; exit 1; } || true
           sha256sum bundle/ghcjs/all.js | tee bundle/all.js.sha256
           tar -C bundle -czf web-bundle.tar.gz .
+      - name: Build the Linux test backend (closure for the android job)
+        run: |
+          nix-build examples/counter/native-backend.nix --arg bundle "$PWD/bundle" -o "$RUNNER_TEMP/result-backend"
+          BACKEND_OUT=$(readlink -f "$RUNNER_TEMP/result-backend")
+          echo "$BACKEND_OUT" > backend-path.txt
+          nix copy --to file://$PWD/backend-closure "$BACKEND_OUT"
+          tar -czf backend-closure.tar.gz backend-closure backend-path.txt
       - uses: actions/upload-artifact@v4
         with:
           name: web-bundle
           path: web-bundle.tar.gz
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-backend
+          path: backend-closure.tar.gz
+          retention-days: 14
 
   ios:
     runs-on: macos-15
     needs: bundle
-    timeout-minutes: 90
+    # The darwin backend build is a cold nix build; give it room.
+    timeout-minutes: 240
     env:
       XCODE_APP: /Applications/Xcode_26.2.app
       SIM_RUNTIME: iOS26.2
@@ -245,10 +258,16 @@ jobs:
           echo "CA_PEM=$RUNNER_TEMP/ca.pem" >> "$GITHUB_ENV"
           echo "SERVER_PEM=$RUNNER_TEMP/server.pem" >> "$GITHUB_ENV"
           echo "SERVER_KEY=$RUNNER_TEMP/server.key" >> "$GITHUB_ENV"
-      - name: Build the native backend from the downloaded bundle
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-backend
+      - name: Restore the prebuilt Linux backend
         run: |
-          nix-build examples/counter/native-backend.nix --arg bundle "$BUNDLE" -o "$RUNNER_TEMP/backend"
-          "$RUNNER_TEMP/backend/bin/backend" --port=8000 > "$RUNNER_TEMP/backend.log" 2>&1 &
+          tar -xzf backend-closure.tar.gz
+          BACKEND_OUT=$(cat backend-path.txt)
+          nix copy --from file://$PWD/backend-closure "$BACKEND_OUT"
+          echo "BACKEND_OUT=$BACKEND_OUT" >> "$GITHUB_ENV"
+          "$BACKEND_OUT/bin/backend" --port=8000 > "$RUNNER_TEMP/backend.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/backend.pid"
       - name: TLS reverse proxy
         run: |
