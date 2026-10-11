@@ -1,0 +1,4 @@
+body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; background: #fafafa; }
+h1 { color: #2b2d42; }
+button { font-size: 1rem; padding: 0.5rem 1rem; margin: 0.25rem; }
+#logo { display: block; margin: 0.5rem 0; }

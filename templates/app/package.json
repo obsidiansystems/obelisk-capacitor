@@ -1,0 +1,18 @@
+{
+  "name": "obelisk-capacitor-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Application template initialized by ob-capacitor init. The fixed private package name keeps the committed lockfile valid for every application; identity lives in capacitor.config.json (appId/appName).",
+  "type": "module",
+  "scripts": {
+    "cap": "cap"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/device": "8.0.3",
+    "@capacitor/ios": "8.5.3"
+  }
+}

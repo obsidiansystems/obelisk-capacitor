@@ -1,0 +1,11 @@
+result*
+dist-newstyle
+*.log
+.obelisk
+
+# The generated Capacitor application: identity/native projects are
+# source-controlled; installed and generated payloads are not.
+app/node_modules/
+app/www/
+app/*.ob-capacitor-bak/
+app/cap-invocations.log

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only trust anchor for the ephemeral test CA (localhost SAN).
+     The CA is generated fresh per CI run and is not a release credential. -->
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="false">localhost</domain>
+        <trust-anchors>
+            <certificates src="@raw/test_ca" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

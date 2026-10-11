@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Obelisk Counter</string>
+    <string name="title_activity_main">Obelisk Counter</string>
+    <string name="package_name">com.obsidiansystems.counter</string>
+    <string name="custom_url_scheme">com.obsidiansystems.counter</string>
+</resources>

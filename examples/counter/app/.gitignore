@@ -1,0 +1,20 @@
+node_modules/
+www/
+*.ob-capacitor-bak/
+
+# Capacitor regenerates these on every sync; the projects themselves are
+# application-owned and source-controlled.
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/output/
+ios/DerivedData/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+*.xcuserdatad/
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+android/capacitor.settings.gradle

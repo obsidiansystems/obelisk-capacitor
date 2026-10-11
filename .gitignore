@@ -1,0 +1,12 @@
+node_modules/
+www/
+build/
+dist/
+*.log
+.DS_Store
+/test/ios/node_modules/
+/test/android/node_modules/
+/test/ios/appium-home/
+/test/android/appium-home/
+*.apk
+*.app

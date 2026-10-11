@@ -1,0 +1,329 @@
+name: mobile
+
+# Independent native acceptance for obelisk-capacitor: build the obelisk web
+# bundle once on Linux, then run the very same bytes inside a real iOS
+# Simulator and Android Emulator against a real TLS backend.
+#
+# Runs on sibling PRs and on demand. Both platform jobs must pass for a
+# sibling release (make them required branch-protection checks); a platform
+# failure is a release blocker, not grounds for skipping the platform.
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22.23.2"
+  NIX_CONFIG: |
+    experimental-features = nix-command flakes
+    allow-import-from-derivation = true
+    extra-substituters = https://cache.nixos.org https://cache.iog.io https://nixcache.reflex-frp.org
+    extra-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= ryantrinkle.com-1:JJiAKaRv9mWgpVAz8dwewnZe0AzzEAzPkagE9SP5NWI=
+
+jobs:
+  bundle:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            allow-import-from-derivation = true
+            extra-substituters = https://cache.nixos.org https://cache.iog.io https://nixcache.reflex-frp.org
+            extra-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= ryantrinkle.com-1:JJiAKaRv9mWgpVAz8dwewnZe0AzzEAzPkagE9SP5NWI=
+      - name: CLI unit tests
+        run: |
+          npm ci --no-audit --no-fund
+          node --test test/bundle.test.mjs test/cli.test.mjs
+      - name: Build the portable web bundle
+        run: |
+          nix-build examples/counter/default.nix -A nixpkgs.webBundle.js -o result-mobile
+          # A regular-file archive: consumers need neither the producer's
+          # Nix store nor any symlink.
+          mkdir bundle
+          cp -RL result-mobile/. bundle/
+          chmod -R u+rw bundle
+          find bundle -type l | grep -q . && { echo 'symlink in bundle'; exit 1; } || true
+          sha256sum bundle/ghcjs/all.js | tee bundle/all.js.sha256
+          tar -C bundle -czf web-bundle.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-bundle
+          path: web-bundle.tar.gz
+          retention-days: 14
+
+  ios:
+    runs-on: macos-15
+    needs: bundle
+    timeout-minutes: 90
+    env:
+      XCODE_APP: /Applications/Xcode_26.2.app
+      SIM_RUNTIME: iOS26.2
+      SIM_DEVICE: iPhone 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            allow-import-from-derivation = true
+            extra-substituters = https://cache.nixos.org https://cache.iog.io https://nixcache.reflex-frp.org
+            extra-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= ryantrinkle.com-1:JJiAKaRv9mWgpVAz8dwewnZe0AzzEAzPkagE9SP5NWI=
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-bundle
+      - name: Unpack the web bundle
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundle"
+          tar -xzf web-bundle.tar.gz -C "$RUNNER_TEMP/bundle"
+          find "$RUNNER_TEMP/bundle" -type l | grep -q . && { echo symlink-in-bundle; exit 1; } || true
+          echo "BUNDLE=$RUNNER_TEMP/bundle" >> "$GITHUB_ENV"
+      - name: Select Xcode
+        run: sudo xcode-select -s "$XCODE_APP"; xcodebuild -version
+      - name: Prepare the CLI and sync the app
+        run: |
+          npm ci --no-audit --no-fund
+          node bin/ob-capacitor.mjs sync --project examples/counter/app --bundle "$BUNDLE" --platform ios
+      - name: Ephemeral test CA and server certificate
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj "/CN=obelisk-capacitor test CA" \
+            -keyout "$RUNNER_TEMP/ca.key" -out "$RUNNER_TEMP/ca.pem"
+          openssl req -newkey rsa:2048 -nodes \
+            -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+            -keyout "$RUNNER_TEMP/server.key" -out "$RUNNER_TEMP/server.csr"
+          openssl x509 -req -in "$RUNNER_TEMP/server.csr" \
+            -CA "$RUNNER_TEMP/ca.pem" -CAkey "$RUNNER_TEMP/ca.key" -CAcreateserial \
+            -days 1 -out "$RUNNER_TEMP/server.pem" \
+            -extfile <(printf "subjectAltName=DNS:localhost,IP:127.0.0.1")
+          echo "CA_PEM=$RUNNER_TEMP/ca.pem" >> "$GITHUB_ENV"
+          echo "SERVER_PEM=$RUNNER_TEMP/server.pem" >> "$GITHUB_ENV"
+          echo "SERVER_KEY=$RUNNER_TEMP/server.key" >> "$GITHUB_ENV"
+      - name: Build the native backend from the downloaded bundle
+        run: |
+          nix-build examples/counter/native-backend.nix --arg bundle "$BUNDLE" -o "$RUNNER_TEMP/backend"
+          "$RUNNER_TEMP/backend/bin/backend" --port=8000 > "$RUNNER_TEMP/backend.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/backend.pid"
+      - name: TLS reverse proxy (no auto issuance, no redirect listener)
+        run: |
+          nix-build examples/counter/default.nix -A pkgs.caddy -o "$RUNNER_TEMP/caddy" >/dev/null 2>&1 || nix-build '<nixpkgs>' -A caddy -o "$RUNNER_TEMP/caddy"
+          cat > "$RUNNER_TEMP/Caddyfile" <<'EOF'
+          {
+            auto_https off
+            admin off
+          }
+          https://localhost:8443 {
+            tls "{$SERVER_PEM}" "{$SERVER_KEY}"
+            reverse_proxy 127.0.0.1:8000
+          }
+          EOF
+          sed -i '' "s|{\$SERVER_PEM}|$SERVER_PEM|; s|{\$SERVER_KEY}|$SERVER_KEY|" "$RUNNER_TEMP/Caddyfile"
+          "$RUNNER_TEMP/caddy/bin/caddy" run --config "$RUNNER_TEMP/Caddyfile" > "$RUNNER_TEMP/caddy.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/caddy.pid"
+          for i in $(seq 1 30); do
+            curl -k -s -o /dev/null https://localhost:8443/ && break
+            sleep 1
+          done
+      - name: Boot the simulator
+        run: |
+          set -euxo pipefail
+          UDID=$(xcrun simctl list devices available | grep "$SIM_DEVICE ($SIM_RUNTIME)" -m1 | grep -oE '[0-9A-F-]{36}' | head -1)
+          if [ -z "$UDID" ]; then
+            UDID=$(xcrun simctl create "obelisk-test" "$SIM_DEVICE" "$SIM_RUNTIME")
+          fi
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl keychain "$UDID" add-trusted-cert "$CA_PEM"
+          echo "DEVICE_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl list runtimes | tee "$RUNNER_TEMP/versions-ios.txt"
+          xcodebuild -version >> "$RUNNER_TEMP/versions-ios.txt"
+      - name: Build the app
+        run: |
+          cd examples/counter/app
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
+            -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build \
+            | xcbeautify --quieter || xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
+            -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
+          echo "APP=$PWD/build/ios/Build/Products/Debug-iphonesimulator/App.app" >> "$GITHUB_ENV"
+      - name: Appium and the acceptance script
+        run: |
+          cd test/ios
+          npm ci --no-audit --no-fund
+          export APPIUM_HOME="$RUNNER_TEMP/appium-home"
+          node node_modules/appium/build/lib/main.js driver install --source=local "$PWD/node_modules/appium-xcuitest-driver"
+          cd ../..
+          env \
+            APPIUM_OS=ios \
+            APP="$APP" \
+            BACKEND_ORIGIN=https://localhost:8443 \
+            PLATFORM_DIR=test/ios \
+            DEVICE_UDID="$DEVICE_UDID" \
+            DEVICE_NAME="$SIM_DEVICE" \
+            PLATFORM_VERSION=26.2 \
+            CADDY_PID="$(cat "$RUNNER_TEMP/caddy.pid")" \
+            ARTIFACTS_DIR="$RUNNER_TEMP/artifacts" \
+            node test/native.mjs
+      - name: Collect evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          cp "$RUNNER_TEMP"/*.log "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/versions-*.txt "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+          cp "$BUNDLE/all.js.sha256" "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-evidence
+          path: ${{ runner.temp }}/artifacts/
+          retention-days: 14
+
+  android:
+    runs-on: ubuntu-24.04
+    needs: bundle
+    timeout-minutes: 90
+    env:
+      JDK_VERSION: "17"
+      AVD_NAME: obelisk-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JDK_VERSION }}
+      - uses: android-actions/setup-android@v3
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            allow-import-from-derivation = true
+            extra-substituters = https://cache.nixos.org https://cache.iog.io https://nixcache.reflex-frp.org
+            extra-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ= ryantrinkle.com-1:JJiAKaRv9mWgpVAz8dwewnZe0AzzEAzPkagE9SP5NWI=
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-bundle
+      - name: Unpack the web bundle
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundle"
+          tar -xzf web-bundle.tar.gz -C "$RUNNER_TEMP/bundle"
+          echo "BUNDLE=$RUNNER_TEMP/bundle" >> "$GITHUB_ENV"
+      - name: Prepare the CLI and sync the app
+        run: |
+          npm ci --no-audit --no-fund
+          node bin/ob-capacitor.mjs sync --project examples/counter/app --bundle "$BUNDLE" --platform android
+      - name: Ephemeral test CA baked into the debug build
+        run: |
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj "/CN=obelisk-capacitor test CA" \
+            -keyout "$RUNNER_TEMP/ca.key" -out "$RUNNER_TEMP/ca.pem"
+          openssl req -newkey rsa:2048 -nodes \
+            -subj "/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+            -keyout "$RUNNER_TEMP/server.key" -out "$RUNNER_TEMP/server.csr"
+          openssl x509 -req -in "$RUNNER_TEMP/server.csr" \
+            -CA "$RUNNER_TEMP/ca.pem" -CAkey "$RUNNER_TEMP/ca.key" -CAcreateserial \
+            -days 1 -out "$RUNNER_TEMP/server.pem" \
+            -extfile <(printf "subjectAltName=DNS:localhost,IP:127.0.0.1")
+          cp "$RUNNER_TEMP/ca.pem" examples/counter/app/android/app/src/debug/res/raw/test_ca.pem
+          echo "CA_PEM=$RUNNER_TEMP/ca.pem" >> "$GITHUB_ENV"
+          echo "SERVER_PEM=$RUNNER_TEMP/server.pem" >> "$GITHUB_ENV"
+          echo "SERVER_KEY=$RUNNER_TEMP/server.key" >> "$GITHUB_ENV"
+      - name: Build the native backend from the downloaded bundle
+        run: |
+          nix-build examples/counter/native-backend.nix --arg bundle "$BUNDLE" -o "$RUNNER_TEMP/backend"
+          "$RUNNER_TEMP/backend/bin/backend" --port=8000 > "$RUNNER_TEMP/backend.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/backend.pid"
+      - name: TLS reverse proxy
+        run: |
+          nix-build examples/counter/default.nix -A pkgs.caddy -o "$RUNNER_TEMP/caddy"
+          cat > "$RUNNER_TEMP/Caddyfile" <<EOF
+          {
+            auto_https off
+            admin off
+          }
+          https://localhost:8443 {
+            tls "$SERVER_PEM" "$SERVER_KEY"
+            reverse_proxy 127.0.0.1:8000
+          }
+          EOF
+          "$RUNNER_TEMP/caddy/bin/caddy" run --config "$RUNNER_TEMP/Caddyfile" > "$RUNNER_TEMP/caddy.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/caddy.pid"
+          for i in $(seq 1 30); do
+            curl -k -s -o /dev/null https://localhost:8443/ && break
+            sleep 1
+          done
+      - name: SDK, emulator, AVD
+        run: |
+          set -euxo pipefail
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator" "system-images;android-35;google_apis;x86_64" > /dev/null
+          echo no | avdmanager create avd -n "$AVD_NAME" -k "system-images;android-35;google_apis;x86_64" -d pixel_6 --force
+          sudo chown -R "$USER" /dev/kvm || true
+          echo "DEVICE_UDID=emulator-5554" >> "$GITHUB_ENV"
+          # Boot now; the app build runs while the emulator settles.
+          nohup "$ANDROID_HOME/emulator/emulator" -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          adb wait-for-device
+          for i in $(seq 1 180); do
+            BOOT=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+            [ "$BOOT" = "1" ] && break
+            sleep 5
+          done
+          [ "$BOOT" = "1" ] || { tail -50 "$RUNNER_TEMP/emulator.log"; exit 1; }
+          adb shell getprop ro.build.version.release > "$RUNNER_TEMP/versions-android.txt"
+          adb shell dumpsys package com.google.android.webview | grep -m1 versionName >> "$RUNNER_TEMP/versions-android.txt" || true
+      - name: Build the app
+        run: |
+          cd examples/counter/app/android
+          ./gradlew assembleDebug --no-daemon
+          echo "APP=$PWD/app/build/outputs/apk/debug/app-debug.apk" >> "$GITHUB_ENV"
+          ./gradlew --version | tee -a "$RUNNER_TEMP/versions-android.txt"
+      - name: Map runner TLS to the device
+        run: |
+          adb reverse tcp:8443 tcp:8443
+      - name: Appium and the acceptance script
+        run: |
+          cd test/android
+          npm ci --no-audit --no-fund
+          export APPIUM_HOME="$RUNNER_TEMP/appium-home"
+          node node_modules/appium/build/lib/main.js driver install --source=local "$PWD/node_modules/appium-uiautomator2-driver"
+          export CHROMEDRIVER_EXECUTABLE_DIR="$RUNNER_TEMP/chromedrivers"
+          mkdir -p "$CHROMEDRIVER_EXECUTABLE_DIR"
+          cd ../..
+          env \
+            APPIUM_OS=android \
+            APP="$APP" \
+            BACKEND_ORIGIN=https://localhost:8443 \
+            PLATFORM_DIR=test/android \
+            DEVICE_UDID=emulator-5554 \
+            CADDY_PID="$(cat "$RUNNER_TEMP/caddy.pid")" \
+            ARTIFACTS_DIR="$RUNNER_TEMP/artifacts" \
+            CHROMEDRIVER_EXECUTABLE_DIR="$CHROMEDRIVER_EXECUTABLE_DIR" \
+            node test/native.mjs
+          grep -m1 "Chromedriver" "$RUNNER_TEMP/artifacts/appium-android.log" >> "$RUNNER_TEMP/versions-android.txt" 2>/dev/null || true
+      - name: Collect evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifacts"
+          cp "$RUNNER_TEMP"/*.log "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+          cp "$RUNNER_TEMP"/versions-*.txt "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+          cp "$BUNDLE/all.js.sha256" "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-evidence
+          path: ${{ runner.temp }}/artifacts/
+          retention-days: 14

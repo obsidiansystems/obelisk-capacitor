@@ -1,0 +1,21 @@
+{
+  "name": "obelisk-capacitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor sibling for Obelisk: wraps the portable obelisk web bundle (target=js) into application-owned iOS and Android projects.",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "bin": {
+    "ob-capacitor": "./bin/ob-capacitor.mjs"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "parse5": "8.0.1"
+  }
+}

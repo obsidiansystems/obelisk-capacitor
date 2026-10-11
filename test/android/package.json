@@ -1,0 +1,12 @@
+{
+  "name": "obelisk-capacitor-android-test",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Android acceptance-test dependencies (kept separate from the iOS stack).",
+  "dependencies": {
+    "appium": "3.8.0",
+    "appium-uiautomator2-driver": "8.7.0",
+    "webdriverio": "10.0.2"
+  }
+}

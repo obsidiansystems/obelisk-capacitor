@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug builds only: trust the locally generated test CA so the
+         acceptance suite can talk to https://localhost:8443. Release builds
+         never include this overlay and must not add cleartext or blanket
+         trust anchors. -->
+    <application android:networkSecurityConfig="@xml/network_security_config_debug">
+    </application>
+</manifest>

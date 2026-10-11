@@ -1,0 +1,47 @@
+{
+  "$schema": "./compatibility.schema.json",
+  "format": "obelisk-capacitor-compatibility",
+  "version": 1,
+  "note": "Platforms and toolchains actually exercised. Absence from this file means untested, not working. A format version is not a promise that any compiler runs on any WebView.",
+  "tested": [
+    {
+      "what": "Portable client boot, hash routing, plugin bridge - desktop Chromium (headless)",
+      "obelisk": "obsidiansystems/obelisk@899032f421dd8d34a7a6badab833df0d14f01ea9",
+      "frontend-target": "js",
+      "capacitor": "8.5.3",
+      "capacitor-plugins": { "@capacitor/app": "8.1.2", "@capacitor/device": "8.0.3" },
+      "device": "headless Chromium (managed automation)",
+      "evidence": {
+        "where": "development workstation, 2026-10-11",
+        "summary": "client and client-hash boot from the portable bundle; config-driven render; hashed asset/CSS; counter events; /?q=a.b#item/a.b href, reload, back/forward; ObeliskCapacitor bridge live; Device.getInfo() answered by the web plugin implementation (platform=web)"
+      }
+    },
+    {
+      "what": "Portable client boot - WASM bundle, desktop Chromium (headless)",
+      "obelisk": "obsidiansystems/obelisk@899032f421dd8d34a7a6badab833df0d14f01ea9",
+      "frontend-target": "wasm",
+      "capacitor": null,
+      "device": "headless Chromium (managed automation)",
+      "evidence": {
+        "where": "development workstation, 2026-10-11",
+        "summary": "skeleton haskell-nix.wasm web bundle boots and renders client-side in a desktop browser; not a WebView claim"
+      }
+    },
+    {
+      "what": "Backend-served hydration (ordinary web)",
+      "obelisk": "obsidiansystems/obelisk@899032f421dd8d34a7a6badab833df0d14f01ea9",
+      "frontend-target": "js",
+      "capacitor": null,
+      "device": "headless Chromium (managed automation)",
+      "evidence": {
+        "where": "development workstation, 2026-10-11",
+        "summary": "server-rendered page hydrates in place; post-hydration events fire; config script tags removed; path routing intact"
+      }
+    }
+  ],
+  "native-ci": {
+    "workflow": ".github/workflows/mobile.yml",
+    "ios": { "pending-first-run": "macos-15, Xcode 26.2, iOS Simulator 26.2, iPhone 16 - row appears after the first hosted run" },
+    "android": { "pending-first-run": "ubuntu-24.04, JDK 17, API 35 emulator (google_apis/x86_64), compileSdk 36/minSdk 24 - row appears after the first hosted run" }
+  }
+}
