@@ -95,6 +95,7 @@ jobs:
       - name: Prepare the CLI and sync the app
         run: |
           npm ci --no-audit --no-fund
+          (cd examples/counter/app && npm ci --no-audit --no-fund)
           node bin/ob-capacitor.mjs sync --project examples/counter/app --bundle "$BUNDLE" --platform ios
       - name: Ephemeral test CA and server certificate
         run: |
@@ -207,7 +208,6 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ env.JDK_VERSION }}
-      - uses: android-actions/setup-android@v3
       - uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
@@ -226,6 +226,7 @@ jobs:
       - name: Prepare the CLI and sync the app
         run: |
           npm ci --no-audit --no-fund
+          (cd examples/counter/app && npm ci --no-audit --no-fund)
           node bin/ob-capacitor.mjs sync --project examples/counter/app --bundle "$BUNDLE" --platform android
       - name: Ephemeral test CA baked into the debug build
         run: |
