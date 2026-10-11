@@ -4,11 +4,13 @@ name: mobile
 # bundle once on Linux, then run the very same bytes inside a real iOS
 # Simulator and Android Emulator against a real TLS backend.
 #
-# Runs on sibling PRs and on demand. Both platform jobs must pass for a
-# sibling release (make them required branch-protection checks); a platform
-# failure is a release blocker, not grounds for skipping the platform.
+# Runs on sibling PRs, master pushes (the sibling's own release validation)
+# and on demand. Both platform jobs must pass for a sibling release; a
+# platform failure is a release blocker, not grounds for skipping it.
 on:
   pull_request:
+  push:
+    branches: [master]
   workflow_dispatch:
 
 concurrency:
@@ -327,3 +329,32 @@ jobs:
           name: android-evidence
           path: ${{ runner.temp }}/artifacts/
           retention-days: 14
+
+  record:
+    # Both platforms green -> append the exercised matrix to compatibility.json
+    # and commit it back, so evidence lands in the repository itself.
+    runs-on: ubuntu-24.04
+    needs: [ios, android]
+    if: github.event_name != 'pull_request' && success()
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: evidence
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.2"
+      - name: Record the run
+        run: |
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          node scripts/record-compatibility.mjs "$RUN_URL" evidence
+          cat compatibility.json
+      - name: Commit the recorded matrix
+        run: |
+          git config user.name "obelisk-capacitor-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add compatibility.json
+          git commit -m "Record native CI run $GITHUB_RUN_ID in compatibility.json" || exit 0
+          git push
