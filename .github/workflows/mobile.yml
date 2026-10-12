@@ -170,7 +170,7 @@ jobs:
             UDID=$(xcrun simctl create "obelisk-test" "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME_ID")
           fi
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl keychain "$UDID" add-trusted-cert "$CA_PEM"
+          xcrun simctl keychain "$UDID" add-root-cert "$CA_PEM"
           echo "DEVICE_UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl list runtimes | tee "$RUNNER_TEMP/versions-ios.txt"
           xcodebuild -version >> "$RUNNER_TEMP/versions-ios.txt"
@@ -221,7 +221,7 @@ jobs:
     needs: bundle
     timeout-minutes: 120
     env:
-      JDK_VERSION: "17"
+      JDK_VERSION: "21"
       AVD_NAME: obelisk-test
     steps:
       - uses: actions/checkout@v4
