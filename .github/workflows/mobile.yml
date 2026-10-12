@@ -57,7 +57,20 @@ jobs:
           tar -C bundle -czf web-bundle.tar.gz .
       - name: Build the Linux test backend (closure for the android job)
         run: |
-          nix-build examples/counter/native-backend.nix --arg bundle "$PWD/bundle" -o "$RUNNER_TEMP/result-backend"
+          # The asset-tree IFD chain can stall nondeterministically; bound each
+          # attempt and retry once instead of burning the job budget on a hang.
+          build_backend() {
+            timeout 4500 nix-build examples/counter/native-backend.nix --arg bundle "$PWD/bundle" -o "$RUNNER_TEMP/result-backend"
+          }
+          set +e
+          build_backend
+          RC=$?
+          set -e
+          if [ "$RC" != "0" ]; then
+            echo "backend build attempt rc=$RC; retrying once"
+            sleep 10
+            build_backend
+          fi
           BACKEND_OUT=$(readlink -f "$RUNNER_TEMP/result-backend")
           echo "$BACKEND_OUT" > backend-path.txt
           nix copy --to file://$PWD/backend-closure "$BACKEND_OUT"
