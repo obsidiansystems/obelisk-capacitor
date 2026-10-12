@@ -184,6 +184,18 @@ jobs:
             -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
           echo "APP=$PWD/build/ios/Build/Products/Debug-iphonesimulator/App.app" >> "$GITHUB_ENV"
+      - name: Build WebDriverAgent standalone (full log on failure)
+        run: |
+          WDA="test/ios/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj"
+          set +e
+          xcodebuild -project "$WDA" -scheme WebDriverAgentRunner \
+            -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
+            -derivedDataPath "$RUNNER_TEMP/wda-dd" CODE_SIGNING_ALLOWED=NO build-for-testing \
+            > "$RUNNER_TEMP/wda-build.log" 2>&1
+          RC=$?
+          set -e
+          echo "wda build-for-testing rc=$RC"
+          if [ "$RC" != "0" ]; then grep -B3 -A12 -iE "error|failed" "$RUNNER_TEMP/wda-build.log" | tail -80; exit 1; fi
       - name: Appium and the acceptance script
         run: |
           cd test/ios
@@ -337,6 +349,7 @@ jobs:
           ./gradlew --version | tee -a "$RUNNER_TEMP/versions-android.txt"
       - name: Map runner TLS to the device
         run: |
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           adb reverse tcp:8443 tcp:8443
       - name: Appium and the acceptance script
         run: |

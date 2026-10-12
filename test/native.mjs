@@ -72,6 +72,7 @@ const caps = OS === 'ios'
       'appium:autoAcceptAlerts': true,
       'appium:webviewConnectTimeout': 30000,
       'appium:useNewWDA': true,
+      'appium:showXcodeLog': true,
       'appium:wdaLaunchTimeout': 240000,
       'appium:wdaConnectionTimeout': 240000,
     }
