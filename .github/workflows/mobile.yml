@@ -225,12 +225,23 @@ jobs:
             # location than the WDA project expects; bridge it if present.
             echo "interop dylibs present in this Xcode:"
             find /Applications/Xcode_26.2.app -name "*TestingInterop*" 2>/dev/null || true
+            echo "platform usr/lib inventory:"
+            ls /Applications/Xcode_26.2.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib 2>/dev/null || true
             EXPECTED="/Applications/Xcode_26.2.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/lib_TestingInterop.dylib"
             FOUND=$(find /Applications/Xcode_26.2.app -name "lib_TestingInterop.dylib" 2>/dev/null | head -1 || true)
             if [ -n "$FOUND" ] && [ ! -e "$EXPECTED" ]; then
               sudo mkdir -p "$(dirname "$EXPECTED")"
               sudo ln -s "$FOUND" "$EXPECTED"
               echo "linked $FOUND -> $EXPECTED; retrying"
+              build_wda
+              RC=$?
+            elif [ ! -e "$EXPECTED" ]; then
+              # Xcode 26.2 does not ship the swift-testing interop dylib the
+              # WDA project's copy phase expects. WDA's runner is XCTest-based
+              # and never loads it, so a zero-symbol dylib satisfies the copy.
+              sudo mkdir -p "$(dirname "$EXPECTED")"
+              echo 'void __obelisk_wda_interop_stub(void) {}' | clang -dynamiclib -x objective-c - -o "$EXPECTED"
+              echo "stubbed $EXPECTED; retrying"
               build_wda
               RC=$?
             fi

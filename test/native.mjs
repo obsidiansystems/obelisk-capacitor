@@ -155,6 +155,10 @@ try {
   const urlReload = await webviewUrl(driver);
   assert.match(urlReload, /\/\?q=a\.b#item\/a\.b$/);
 
+  // 6b. Return to the main route; the backend/device widgets live there.
+  await driver.execute(() => window.history.back());
+  await driver.waitUntil(async () => (await driver.execute(() => !!document.querySelector('#home-marker'))), { timeout: 30000 });
+
   // 7. Real backend state transition initiated by the UI (via TLS proxy).
   await driver.execute(() => document.querySelector('#backend-inc').click());
   await driver.waitUntil(async () => /HTTP 200/.test(await driver.execute(() => document.querySelector('#backend-result')?.textContent ?? '')), { timeout: 30000 });
@@ -171,8 +175,10 @@ try {
   assert.match(device, new RegExp(`platform=${OS}`), `Device.getInfo must report the native platform: ${device}`);
   assert.ok(!/platform=web/.test(device), `web fallback means the bridge is not native: ${device}`);
 
-  // 9. Android hardware back in NATIVE_APP context returns to the main route.
+  // 9. Android hardware back in NATIVE_APP context: item -> main route.
   if (OS === 'android') {
+    await driver.execute(() => window.history.forward());
+    await driver.waitUntil(async () => (await driver.execute(() => !!document.querySelector('#item-marker'))), { timeout: 30000 });
     await driver.switchContext('NATIVE_APP');
     await driver.pressKeyCode(4);
     await driver.switchContext(webview);
