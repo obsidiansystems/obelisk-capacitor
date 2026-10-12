@@ -186,6 +186,7 @@ jobs:
           echo "APP=$PWD/build/ios/Build/Products/Debug-iphonesimulator/App.app" >> "$GITHUB_ENV"
       - name: Build WebDriverAgent standalone (full log on failure)
         run: |
+          (cd test/ios && npm ci --no-audit --no-fund)
           WDA="test/ios/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj"
           set +e
           xcodebuild -project "$WDA" -scheme WebDriverAgentRunner \

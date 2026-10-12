@@ -63,7 +63,7 @@ configWidget = do
   mRoute <- getTextConfig "common/route"
   elAttr "p" ("id" =: "backend-origin") $ text $ case mRoute of
     Nothing -> "common/route: not configured"
-    Just r -> "common/route: " <> r
+    Just r -> "common/route: " <> T.strip r
 
 -- | The hashed static asset: served under its content-hashed URL from
 -- static/, exactly as Obelisk.Generated.Static addresses it.

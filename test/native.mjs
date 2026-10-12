@@ -120,7 +120,9 @@ try {
 
   // 1. Initial config-driven render.
   const origin = await driver.execute(() => document.querySelector('#backend-origin')?.textContent);
-  assert.match(origin, new RegExp(`^common/route: ${process.env.BACKEND_ORIGIN?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+  // The baked config value may carry the file's trailing newline; the
+  // semantic assertion is on the trimmed text.
+  assert.match(origin.trim(), new RegExp(`^common/route: ${process.env.BACKEND_ORIGIN?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 
   // 2. Local counter 0 -> 1 on tap.
   assert.equal(await driver.execute(() => document.querySelector('#count')?.textContent), '0');
