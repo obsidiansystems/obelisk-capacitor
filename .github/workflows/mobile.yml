@@ -187,7 +187,15 @@ jobs:
       - name: Build WebDriverAgent standalone (full log on failure)
         run: |
           (cd test/ios && npm ci --no-audit --no-fund)
-          # npm overrides may hoist the package; find it wherever it lands.
+          # appium-webdriveragent is a bundleDependency of the driver, so npm
+          # overrides cannot touch it; replace the bundled copy with 16.15.0,
+          # which carries the Xcode 26 support we need.
+          (cd test/ios \
+            && rm -rf node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent \
+            && npm pack appium-webdriveragent@16.15.0 --silent \
+            && tar -xzf appium-webdriveragent-16.15.0.tgz \
+            && mv package node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent \
+            && rm -f appium-webdriveragent-16.15.0.tgz)
           WDA=$(find test/ios/node_modules -maxdepth 3 -type d -name appium-webdriveragent | head -1)/WebDriverAgent.xcodeproj
           echo "WDA project: $WDA"
           build_wda() {
