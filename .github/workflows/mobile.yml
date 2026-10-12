@@ -154,9 +154,11 @@ jobs:
       - name: Boot the simulator
         run: |
           set -euxo pipefail
-          UDID=$(xcrun simctl list devices available | grep "$SIM_DEVICE ($SIM_RUNTIME)" -m1 | grep -oE '[0-9A-F-]{36}' | head -1)
+          RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c \
+            'import json,sys; rs=json.load(sys.stdin)["runtimes"]; rs=[r for r in rs if r["name"]=="iOS" and r["version"].startswith("26.")]; print(sorted(rs,key=lambda r:r["version"])[-1]["identifier"])')
+          UDID=$(xcrun simctl list devices available | grep -m1 "iPhone 16 (" | grep -oE '[0-9A-Fa-f-]{36}' || true)
           if [ -z "$UDID" ]; then
-            UDID=$(xcrun simctl create "obelisk-test" "$SIM_DEVICE" "$SIM_RUNTIME")
+            UDID=$(xcrun simctl create "obelisk-test" "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME_ID")
           fi
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl keychain "$UDID" add-trusted-cert "$CA_PEM"
@@ -265,7 +267,9 @@ jobs:
         run: |
           tar -xzf backend-closure.tar.gz
           BACKEND_OUT=$(cat backend-path.txt)
-          nix copy --from file://$PWD/backend-closure "$BACKEND_OUT"
+          # The closure carries binary-cache-substituted paths; it is our own
+          # artifact, so signature checking is not the trust boundary here.
+          nix copy --no-check-sigs --from file://$PWD/backend-closure "$BACKEND_OUT"
           echo "BACKEND_OUT=$BACKEND_OUT" >> "$GITHUB_ENV"
           "$BACKEND_OUT/bin/backend" --port=8000 > "$RUNNER_TEMP/backend.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/backend.pid"
