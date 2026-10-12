@@ -154,13 +154,16 @@ jobs:
       - name: Boot the simulator
         run: |
           set -euxo pipefail
-          RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c \
-            'import json,sys; rs=json.load(sys.stdin)["runtimes"]; rs=[r for r in rs if r["name"]=="iOS" and r["version"].startswith("26.")]; print(sorted(rs,key=lambda r:r["version"])[-1]["identifier"] if rs else "")' || true)
+          find_runtime() {
+            xcrun simctl list runtimes \
+              | grep -oE 'com.apple.CoreSimulator.SimRuntime.iOS-[0-9]+-[0-9]+' \
+              | sort -V | tail -1
+          }
+          RUNTIME_ID=$(find_runtime || true)
           if [ -z "$RUNTIME_ID" ]; then
             xcrun simctl list runtimes || true
             xcodebuild -downloadPlatform iOS
-            RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c \
-              'import json,sys; rs=json.load(sys.stdin)["runtimes"]; rs=[r for r in rs if r["name"]=="iOS" and r["version"].startswith("26.")]; print(sorted(rs,key=lambda r:r["version"])[-1]["identifier"])')
+            RUNTIME_ID=$(find_runtime)
           fi
           UDID=$(xcrun simctl list devices available | grep -m1 "iPhone 16 (" | grep -oE '[0-9A-Fa-f-]{36}' || true)
           if [ -z "$UDID" ]; then
@@ -216,7 +219,7 @@ jobs:
   android:
     runs-on: ubuntu-24.04
     needs: bundle
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       JDK_VERSION: "17"
       AVD_NAME: obelisk-test
@@ -307,18 +310,23 @@ jobs:
           AVDMANAGER=$(dirname "$SDKMANAGER")/avdmanager
           yes | "$SDKMANAGER" --licenses > /dev/null || true
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator" "system-images;android-35;google_apis;x86_64" > /dev/null
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$AVDMANAGER" create avd -n "$AVD_NAME" -k "system-images;android-35;google_apis;x86_64" -d pixel_6 --force
+          # The emulator only sees AVDs from ANDROID_AVD_HOME; verify before booting.
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -x "$AVD_NAME"
           sudo chown -R "$USER" /dev/kvm || true
           echo "DEVICE_UDID=emulator-5554" >> "$GITHUB_ENV"
           # Boot now; the app build runs while the emulator settles.
           nohup "$ANDROID_HOME/emulator/emulator" -avd "$AVD_NAME" -no-window -no-audio -no-boot-anim -accel on -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           adb wait-for-device
-          for i in $(seq 1 180); do
+          BOOT=""
+          for i in $(seq 1 120); do
             BOOT=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
             [ "$BOOT" = "1" ] && break
             sleep 5
           done
-          [ "$BOOT" = "1" ] || { tail -50 "$RUNNER_TEMP/emulator.log"; exit 1; }
+          [ "$BOOT" = "1" ] || { echo 'emulator failed to boot'; tail -80 "$RUNNER_TEMP/emulator.log"; exit 1; }
           adb shell getprop ro.build.version.release > "$RUNNER_TEMP/versions-android.txt"
           adb shell dumpsys package com.google.android.webview | grep -m1 versionName >> "$RUNNER_TEMP/versions-android.txt" || true
       - name: Build the app
