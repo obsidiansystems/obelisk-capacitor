@@ -8,5 +8,8 @@
     "appium": "3.8.0",
     "appium-xcuitest-driver": "12.17.1",
     "webdriverio": "10.0.2"
+  },
+  "overrides": {
+    "appium-webdriveragent": "16.15.0"
   }
 }

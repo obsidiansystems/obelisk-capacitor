@@ -187,13 +187,33 @@ jobs:
       - name: Build WebDriverAgent standalone (full log on failure)
         run: |
           (cd test/ios && npm ci --no-audit --no-fund)
-          WDA="test/ios/node_modules/appium-xcuitest-driver/node_modules/appium-webdriveragent/WebDriverAgent.xcodeproj"
+          # npm overrides may hoist the package; find it wherever it lands.
+          WDA=$(find test/ios/node_modules -maxdepth 3 -type d -name appium-webdriveragent | head -1)/WebDriverAgent.xcodeproj
+          echo "WDA project: $WDA"
+          build_wda() {
+            xcodebuild -project "$WDA" -scheme WebDriverAgentRunner \
+              -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
+              -derivedDataPath "$RUNNER_TEMP/wda-dd" build-for-testing \
+              > "$RUNNER_TEMP/wda-build.log" 2>&1
+          }
           set +e
-          xcodebuild -project "$WDA" -scheme WebDriverAgentRunner \
-            -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
-            -derivedDataPath "$RUNNER_TEMP/wda-dd" build-for-testing \
-            > "$RUNNER_TEMP/wda-build.log" 2>&1
+          build_wda
           RC=$?
+          if [ "$RC" != "0" ] && grep -q "lib_TestingInterop.dylib" "$RUNNER_TEMP/wda-build.log"; then
+            # Xcode 26 toolchains keep the testing-interop dylib in a different
+            # location than the WDA project expects; bridge it if present.
+            echo "interop dylibs present in this Xcode:"
+            find /Applications/Xcode_26.2.app -name "*TestingInterop*" 2>/dev/null || true
+            EXPECTED="/Applications/Xcode_26.2.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/usr/lib/lib_TestingInterop.dylib"
+            FOUND=$(find /Applications/Xcode_26.2.app -name "lib_TestingInterop.dylib" 2>/dev/null | head -1 || true)
+            if [ -n "$FOUND" ] && [ ! -e "$EXPECTED" ]; then
+              sudo mkdir -p "$(dirname "$EXPECTED")"
+              sudo ln -s "$FOUND" "$EXPECTED"
+              echo "linked $FOUND -> $EXPECTED; retrying"
+              build_wda
+              RC=$?
+            fi
+          fi
           set -e
           echo "wda build-for-testing rc=$RC"
           if [ "$RC" != "0" ]; then grep -B3 -A12 -iE "error|failed" "$RUNNER_TEMP/wda-build.log" | tail -80; exit 1; fi

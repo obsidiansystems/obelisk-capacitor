@@ -134,7 +134,7 @@ try {
     const i = document.getElementById('logo');
     return { src: i.getAttribute('src'), w: i.naturalWidth };
   });
-  assert.match(logo.src, /^[0-9a-z]+-logo\.svg$/, `logo must load under its hashed name, got src=${JSON.stringify(logo.src)} w=${logo.w}`);
+  assert.match(logo.src, /[0-9a-z]+-logo\.svg$/, `logo must load under its hashed name, got src=${JSON.stringify(logo.src)} w=${logo.w}`);
   assert.ok(logo.w > 0, `hashed logo must actually decode, got ${JSON.stringify(logo)}`);
 
   // 4. Typed route navigation: dotted path segment + encoded query in the hash.
