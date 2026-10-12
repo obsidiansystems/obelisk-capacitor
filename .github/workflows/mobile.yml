@@ -155,7 +155,13 @@ jobs:
         run: |
           set -euxo pipefail
           RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c \
-            'import json,sys; rs=json.load(sys.stdin)["runtimes"]; rs=[r for r in rs if r["name"]=="iOS" and r["version"].startswith("26.")]; print(sorted(rs,key=lambda r:r["version"])[-1]["identifier"])')
+            'import json,sys; rs=json.load(sys.stdin)["runtimes"]; rs=[r for r in rs if r["name"]=="iOS" and r["version"].startswith("26.")]; print(sorted(rs,key=lambda r:r["version"])[-1]["identifier"] if rs else "")' || true)
+          if [ -z "$RUNTIME_ID" ]; then
+            xcrun simctl list runtimes || true
+            xcodebuild -downloadPlatform iOS
+            RUNTIME_ID=$(xcrun simctl list runtimes -j | python3 -c \
+              'import json,sys; rs=json.load(sys.stdin)["runtimes"]; rs=[r for r in rs if r["name"]=="iOS" and r["version"].startswith("26.")]; print(sorted(rs,key=lambda r:r["version"])[-1]["identifier"])')
+          fi
           UDID=$(xcrun simctl list devices available | grep -m1 "iPhone 16 (" | grep -oE '[0-9A-Fa-f-]{36}' || true)
           if [ -z "$UDID" ]; then
             UDID=$(xcrun simctl create "obelisk-test" "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME_ID")
@@ -295,9 +301,13 @@ jobs:
       - name: SDK, emulator, AVD
         run: |
           set -euxo pipefail
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator" "system-images;android-35;google_apis;x86_64" > /dev/null
-          echo no | avdmanager create avd -n "$AVD_NAME" -k "system-images;android-35;google_apis;x86_64" -d pixel_6 --force
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMANAGER" ] || SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort | tail -1)
+          AVDMANAGER=$(dirname "$SDKMANAGER")/avdmanager
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator" "system-images;android-35;google_apis;x86_64" > /dev/null
+          echo no | "$AVDMANAGER" create avd -n "$AVD_NAME" -k "system-images;android-35;google_apis;x86_64" -d pixel_6 --force
           sudo chown -R "$USER" /dev/kvm || true
           echo "DEVICE_UDID=emulator-5554" >> "$GITHUB_ENV"
           # Boot now; the app build runs while the emulator settles.
