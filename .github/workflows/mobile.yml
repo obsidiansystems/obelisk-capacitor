@@ -191,7 +191,7 @@ jobs:
           set +e
           xcodebuild -project "$WDA" -scheme WebDriverAgentRunner \
             -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
-            -derivedDataPath "$RUNNER_TEMP/wda-dd" CODE_SIGNING_ALLOWED=NO build-for-testing \
+            -derivedDataPath "$RUNNER_TEMP/wda-dd" build-for-testing \
             > "$RUNNER_TEMP/wda-build.log" 2>&1
           RC=$?
           set -e

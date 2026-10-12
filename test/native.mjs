@@ -134,8 +134,8 @@ try {
     const i = document.getElementById('logo');
     return { src: i.getAttribute('src'), w: i.naturalWidth };
   });
-  assert.match(logo.src, /^[0-9a-z]+-logo\.svg$/, 'logo must load under its hashed name');
-  assert.ok(logo.w > 0, 'hashed logo must actually decode');
+  assert.match(logo.src, /^[0-9a-z]+-logo\.svg$/, `logo must load under its hashed name, got src=${JSON.stringify(logo.src)} w=${logo.w}`);
+  assert.ok(logo.w > 0, `hashed logo must actually decode, got ${JSON.stringify(logo)}`);
 
   // 4. Typed route navigation: dotted path segment + encoded query in the hash.
   await driver.execute(() => document.querySelector('#link-item').click());
@@ -195,7 +195,22 @@ try {
 } catch (e) {
   failed = true;
   await writeFile(`${ARTIFACTS}/failure-${OS}.txt`, String(e?.stack ?? e), 'utf8').catch(() => {});
-  if (driver) await shot(driver, 'failure').catch(() => {});
+  if (driver) {
+    await shot(driver, 'failure').catch(() => {});
+    // Self-describing failures: dump the live DOM state we were asserting on.
+    try {
+      const ctx = await driver.getContext().catch(() => null);
+      const dump = await driver.execute(() => ({
+        href: location.href,
+        logo: document.getElementById('logo')?.outerHTML ?? null,
+        count: document.querySelector('#count')?.textContent ?? null,
+        backendOrigin: document.querySelector('#backend-origin')?.textContent ?? null,
+        backendResult: document.querySelector('#backend-result')?.textContent ?? null,
+        deviceResult: document.querySelector('#device-result')?.textContent ?? null,
+      })).catch((e2) => ({ evalFailed: String(e2) }));
+      await writeFile(`${ARTIFACTS}/failure-context-${OS}.json`, JSON.stringify({ ctx, dump }, null, 2), 'utf8');
+    } catch {}
+  }
   console.error(`NATIVE-Acceptance-${OS} FAILED:`, e?.message ?? e);
   process.exitCode = 1;
 } finally {
