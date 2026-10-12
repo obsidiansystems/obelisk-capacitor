@@ -149,9 +149,10 @@ test('stageWebTree failure removes only its own staging directory', async () => 
   await makeBundle(bundleDir, { html: BOOTSTRAP_HTML('bogus') }); // transform will reject
   const app = await mkdtemp(join(tmpdir(), 'ob-app-'));
   await writeFile(join(app, 'native.mjs'), 'export const x = 1;\n');
-  const before = (await readdir(tmpdir())).length;
   const bundle = await readBundle(bundleDir);
   await assert.rejects(() => stageWebTree(app, bundle), BundleError);
-  const after = (await readdir(tmpdir())).length;
-  assert.equal(after, before);
+  // Counting all tmp entries races with unrelated churn; assert our prefix
+  // leaves nothing behind instead.
+  const leftover = (await readdir(tmpdir())).filter((e) => e.startsWith('ob-capacitor-stage-'));
+  assert.deepEqual(leftover, []);
 });
