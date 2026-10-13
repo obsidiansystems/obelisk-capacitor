@@ -15,10 +15,6 @@ obelisk-capacitor packages an
 [Capacitor](https://capacitorjs.com). Reflex-DOM runs in the platform's WebView,
 and JSaddle provides access to native plugins.
 
-Android is tested in [CI](./.github/workflows/mobile.yml). iOS testing is
-optional and non-blocking; full iOS acceptance remains unverified.
-See [`compatibility.json`](./compatibility.json) for tested versions.
-
 <p align="center">
   <picture>
     <source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/android-demo.png">
