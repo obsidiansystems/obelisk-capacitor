@@ -19,6 +19,15 @@ Android is tested in [CI](./.github/workflows/mobile.yml). iOS testing is
 optional and non-blocking; full iOS acceptance remains unverified.
 See [`compatibility.json`](./compatibility.json) for tested versions.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce)" srcset="./docs/assets/android-demo.png">
+    <img src="./docs/assets/android-demo.gif" width="320" alt="Android emulator demo: tap the Reflex counter, drag its goal slider, and swipe to the live backend and native device cards.">
+  </picture>
+  <br>
+  The counter example, running in the Android emulator.
+</p>
+
 ## Try the example
 
 From this repository root on x86_64 Linux:

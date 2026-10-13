@@ -1,4 +1,152 @@
-body { font-family: system-ui, sans-serif; margin: 2rem; color: #222; background: #fafafa; }
-h1 { color: #2b2d42; }
-button { font-size: 1rem; padding: 0.5rem 1rem; margin: 0.25rem; }
-#logo { display: block; margin: 0.5rem 0; }
+@property --count {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --goal {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 12;
+}
+
+:root {
+  font-family: system-ui, sans-serif;
+  color: #23332d;
+  background: #f4f2e9;
+  font-synthesis: none;
+  --lime: #d4f58a;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input { font: inherit; }
+button, a, summary { -webkit-tap-highlight-color: transparent; }
+button, a { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible, .cards:focus-visible {
+  outline: 3px solid #789a37;
+  outline-offset: 4px;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+}
+.brand, .intro, .routes, .diagnostics { margin-inline: 24px; }
+.brand { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 650; }
+#logo { display: block; border-radius: 9px; }
+.edition { margin-left: auto; font: 10px ui-monospace, monospace; letter-spacing: 2px; }
+.intro { margin-block: 26px 24px; }
+h1 { font-size: 36px; line-height: 1.12; letter-spacing: -1.4px; margin: 0 0 10px; }
+.intro p { color: #647168; font-size: 14px; margin: 0; }
+h2 { font-size: 29px; line-height: 1.2; letter-spacing: -1px; margin: 14px 0 20px; }
+
+/* All cards stay mounted. Scroll snap owns swipes; Reflex owns their state. */
+.cards {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 0 24px 8px;
+  scroll-padding-inline: 24px;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.cards::-webkit-scrollbar { display: none; }
+.card {
+  flex: 0 0 calc(100% - 20px);
+  min-width: 0;
+  padding: 22px;
+  border-radius: 28px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.local-card { color: #f2f5e9; background: #233b30; }
+.backend-card { color: #383151; background: #ded8f5; }
+.device-card { color: #21473e; background: #c5e8dc; }
+.card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.eyebrow { font: 10px ui-monospace, monospace; letter-spacing: 1.2px; }
+.tag { border: 1px solid currentColor; border-radius: 20px; padding: 5px 7px; font-size: 8px; letter-spacing: 1px; }
+.local-card .card-heading { color: #d4e7bb; }
+
+.counter-ring {
+  width: 184px;
+  height: 184px;
+  margin: 0 auto 22px;
+  padding: 10px;
+  border-radius: 50%;
+  background: conic-gradient(var(--lime) min(100%, calc(100% * var(--count) / var(--goal))), #415649 0);
+  transition: --count 220ms ease-out, --goal 220ms ease-out;
+}
+.ring-center {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #233b30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#count { font-size: 76px; font-weight: 550; line-height: 1.05; letter-spacing: -4px; font-variant-numeric: tabular-nums; }
+.count-unit { color: #b3c5af; font: 10px ui-monospace, monospace; letter-spacing: 3px; margin-top: 6px; }
+button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: transform 100ms;
+}
+button:active { transform: scale(.96); }
+.counter-actions { display: flex; gap: 10px; }
+#counter-inc { flex: 1; background: var(--lime); color: #233b30; }
+#counter-reset { background: #3e5547; color: #e3ebd8; }
+.goal-label { display: flex; justify-content: space-between; margin-top: 20px; font-size: 12px; color: #d2dec9; }
+#goal-value { font-variant-numeric: tabular-nums; }
+#counter-goal {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin: 4px 0 0;
+  background: transparent;
+  touch-action: pan-y;
+}
+#counter-goal::-webkit-slider-runnable-track { height: 4px; background: #60735a; border-radius: 4px; }
+#counter-goal::-webkit-slider-thumb { appearance: none; width: 24px; height: 24px; margin-top: -10px; background: var(--lime); border: 4px solid #233b30; border-radius: 50%; box-shadow: 0 0 0 1px #a6c479; }
+#counter-goal::-moz-range-track { height: 4px; background: #60735a; border-radius: 4px; }
+#counter-goal::-moz-range-thumb { width: 16px; height: 16px; background: var(--lime); border: 4px solid #233b30; border-radius: 50%; }
+.card-note { margin: 6px 0 0; font-size: 11px; color: #b3c5af; }
+.card-description { font-size: 15px; line-height: 1.6; margin: 24px 0; }
+#backend-inc { background: #51426f; color: #fff; width: 100%; }
+#device-btn { background: #285749; color: #fff; width: 100%; }
+#backend-result, #device-result {
+  font: 12px/1.7 ui-monospace, monospace;
+  padding: 16px;
+  border: 1px solid currentColor;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+  margin: 18px 0 0;
+}
+.backend-art { height: 154px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.backend-art > span:not(.connection) { display: grid; place-items: center; width: 72px; height: 72px; border: 2px solid #81749f; border-radius: 22px; font: 14px ui-monospace, monospace; }
+.connection { border-block: 1px dashed #81749f; padding: 10px 0; font: 10px ui-monospace, monospace; }
+.device-art { width: 94px; height: 154px; margin: 0 auto; padding: 7px; border: 2px solid #4f8572; border-radius: 24px; transform: rotate(8deg); }
+.device-screen { display: grid; place-items: center; height: 100%; border-radius: 16px; background: #aed4c4; font: 26px ui-monospace, monospace; color: #437462; }
+.swipe-hint { margin: 14px 0 18px; text-align: center; color: #68766b; font: 10px ui-monospace, monospace; letter-spacing: .6px; }
+.diagnostics { font-size: 11px; color: #69756b; }
+.diagnostics summary { cursor: pointer; padding: 10px 0; }
+.diagnostics p { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
+.routes { display: flex; gap: 12px; margin-top: 12px; padding-top: 16px; border-top: 1px solid #dcded2; }
+.routes a { color: #344b3d; text-decoration: none; font-size: 12px; padding: 12px 18px; border-radius: 14px; background: #e7e9dc; }
+.routes a:last-child { margin-left: auto; }
+.route-detail { margin: 28px 24px; padding: 28px; border-radius: 24px; background: #ded8f5; min-height: 350px; }
+.route-detail p { line-height: 1.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .counter-ring, button { transition: none; }
+}

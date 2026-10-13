@@ -21,12 +21,11 @@ non-blocking (`workflow_dispatch` with `run_ios=true`); its full acceptance
 remains unverified. Passing tuples and run links live in
 [`compatibility.json`](../../compatibility.json).
 
-The frontend exercises live Reflex-DOM behavior: a `foldDyn` counter,
-route-driven widget replacement, asynchronous XHR responses, and JSaddle
-effects displaying native device information. It is a small integration
-smoke app, not a large-UI or lifecycle stress test. The native suite checks
-both successful backend state changes and visible failures while local
-events remain responsive.
+The frontend has three swipeable cards: a local counter and goal slider,
+an HTTPS backend call, and native device information. Counter and input
+events feed the same Reflex graph; swiping keeps each card's state intact.
+Typed routes exercise widget replacement and Android Back. This is a small
+integration demo, not a large-UI or lifecycle stress test.
 
 ## Run Android with Nix
 
@@ -74,12 +73,21 @@ Appium acceptance suite.
 
 ### Manual checks
 
-1. Tap Increment. The local count changes from 0 to 1.
-2. Tap POST /api/increment. The first response is `HTTP 200 {"count":1}`.
-3. Check that the device result contains `platform=android`.
-4. Open item a.b. Use Android Back to return to the home route.
+1. Tap + Increment. The local count changes from 0 to 1.
+2. Drag Tap goal. Its value and the progress ring change; the count stays 1.
+3. Swipe left to Backend. Tap POST /api/increment. The first response is `HTTP 200 {"count":1}`.
+4. Swipe left to Native device. Check that the result contains `platform=android`.
+5. Swipe back to the counter. Its count and goal are unchanged. Tap Reset to return to 0.
+6. Open Item a.b. Use Android Back to return to the counter.
 
 To inspect the WebView, open `chrome://inspect/#devices` in desktop Chrome.
 Select the counter's `https://localhost/` page. DevTools provides the console,
 network requests and an offline network setting for checking request failures.
 
+## README media
+
+The [README animation](../../docs/assets/android-demo.gif) was captured from
+the API 35 emulator with `adb shell screenrecord`, using real taps, slider
+drags and swipes. It is a 480-pixel-wide GIF at 12 fps. The
+[still image](../../docs/assets/android-demo.png) is a frame from that recording,
+shown instead when the reader enables reduced motion.
