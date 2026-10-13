@@ -1,188 +1,277 @@
+<div align="center">
+
 # obelisk-capacitor
 
-Capacitor sibling for [Obelisk](https://github.com/obsidiansystems/obelisk):
-wrap the portable **obelisk web bundle** (JavaScript target) in application-
-owned iOS and Android projects, and call native device APIs from your Haskell
-frontend through jsaddle.
+### Your Haskell frontend, in a native app.
 
-Obelisk core ships the generic `webBundle` output; this repository owns the
-Capacitor-specific contract. Apps pin Obelisk and this sibling independently:
-Obelisk's web, GHC, nixpkgs and security releases never wait for mobile SDKs,
-and mobile releases never wait for Obelisk.
+`Obelisk` · `Reflex-DOM` · `Capacitor` — one web bundle, application-owned native projects.
 
-- **Status:** initial release. The exercised platform matrix lives in
-  [`compatibility.json`](./compatibility.json); a platform not listed there is
-  not claimed to work.
-- **Target:** `js` (GHCJS). A WASM bundle is rejected with instructions to
-  rebuild for JavaScript; the sibling never rebuilds your frontend, switches
-  compilers, or ships two runtimes. (Rationale: the GHC WASM backend's
-  asynchronous JSFFI needs JSPI, which older WKWebView/Android WebView
-  releases lack; the JavaScript output has no such dependency.)
+[![Android CI](https://github.com/obsidiansystems/obelisk-capacitor/actions/workflows/mobile.yml/badge.svg?branch=master)](https://github.com/obsidiansystems/obelisk-capacitor/actions/workflows/mobile.yml) [![Built with Nix](https://img.shields.io/static/v1?logo=nixos&logoColor=white&label=&message=Built%20with%20Nix&color=41439a)](https://nixos.org) [![Capacitor](https://img.shields.io/badge/Capacitor-8.5.3-119EFF?logo=capacitor&logoColor=white)](https://capacitorjs.com) [![Obsidian](https://img.shields.io/badge/Obsidian-Systems-white)](https://obsidian.systems)
 
-## Setup
+[Quick start](#quick-start) · [Counter example](./examples/counter) · [Native plugins](#native-plugins-from-haskell) · [Compatibility](./compatibility.json)
 
-Requirements: Node 22.19+ / npm 10+ (CI runs Node 22.23.2), Nix for the
-Obelisk build, and for native work Xcode (iOS) or Android Studio (Android).
+</div>
 
-```bash
-git clone git@github.com:obsidiansystems/obelisk-capacitor.git <app>/deps/obelisk-capacitor
-cd <app>/deps/obelisk-capacitor && npm ci   # prepares the CLI (esbuild + parse5)
+After the one-time setup below, the edit loop is a bundle build and a sync:
+
+```sh
+# In your Obelisk application:
+nix-build default.nix -A nixpkgs.webBundle.js -o result-mobile
+node deps/obelisk-capacitor/bin/ob-capacitor.mjs sync \
+  --project mobile --bundle result-mobile --platform android
 ```
 
-No npm publication: applications consume the CLI from a pinned Git revision.
+Wrap an [Obelisk](https://github.com/obsidiansystems/obelisk) frontend in
+[Capacitor](https://capacitorjs.com), keep its Reflex-DOM event graph running
+inside the native WebView, and call device APIs through ordinary JSaddle.
+Obelisk builds the portable web artifact; this repository handles the
+Capacitor integration. Your app owns the Android and iOS projects.
 
-## The two commands
+> **Android first.** Android is the required native CI gate. iOS testing is
+> temporarily opt-in and non-blocking; full iOS acceptance remains unverified.
+> [`compatibility.json`](./compatibility.json) records passing, exercised
+> configurations—not a promise that every OS or WebView works.
+
+## Why obelisk-capacitor?
+
+- **Keep your Haskell frontend.** Reflex events, `Dynamic`s, typed routes and
+  JSaddle interop run from the compiled JavaScript bundle. No second Haskell
+  runtime or native Haskell cross-compilation.
+- **Build once, package natively.** The bundle carries bootstrap HTML, public
+  config, compiler output and hashed assets. Native packaging needs neither
+  the producer's Nix store nor another frontend build.
+- **Own the native projects.** Commit `android/` and `ios/`. Use the normal
+  Capacitor CLI, Android Studio and Xcode; retain native source, plugins and
+  signing settings across syncs.
+- **Reach real device APIs.** Export official or custom Capacitor plugins
+  from an application-owned `native.mjs`, then call them from Haskell.
+- **Pin the two sides independently.** Obelisk core and this integration have
+  separate Git pins. Core web/compiler/security releases do not wait for
+  mobile SDKs, and mobile releases do not gate Obelisk.
+
+## Quick start
+
+### Prerequisites
+
+| Tool | Needed for |
+|---|---|
+| Node 22.19+ and npm 10+ | The CLI and locked application dependencies; CI uses Node 22.23.2 |
+| Nix and an Obelisk revision with `webBundle` | Building the portable JavaScript frontend |
+| Android Studio / Android SDK and JDK 21 | Android builds; the template uses compileSdk 36 and minSdk 24 |
+| macOS and Xcode | Optional iOS work; the currently unverified CI configuration selects Xcode 26.2 |
+
+### 1. Pin the integration
+
+From your Obelisk application root:
+
+```sh
+git clone https://github.com/obsidiansystems/obelisk-capacitor.git deps/obelisk-capacitor
+(cd deps/obelisk-capacitor && npm ci)
+```
+
+Check out the sibling Git revision you intend to keep and record that pin
+with your application's dependencies. Pin Obelisk separately to a compatible
+revision; the [counter example](./examples/counter/deps/obelisk/thunk.nix)
+shows its immutable core pin. There is no npm-registry publication or global
+CLI installation.
+
+### 2. Build the bundle and create the app
+
+```sh
+nix-build default.nix -A nixpkgs.webBundle.js -o result-mobile
+
+node deps/obelisk-capacitor/bin/ob-capacitor.mjs init mobile \
+  --app-id com.example.myapp --app-name "My App" --bundle result-mobile
+
+(cd mobile && npx --no-install cap add android)
+```
+
+`init` needs only Node/npm, not a native SDK. Commit the generated application,
+including `mobile/android/`, its lockfile and `native.mjs`. `www/`,
+`node_modules/`, build products and signing secrets are ignored.
+
+On macOS, `npx --no-install cap add ios` adds an application-owned iOS project.
+Capacitor 8 uses Swift Package Manager: `ios/App/App.xcodeproj`, scheme `App`;
+no CocoaPods workspace is required.
+
+### 3. Rebuild, sync, run
+
+Use the build-and-sync commands above after each frontend change, then:
+
+```sh
+(cd mobile && npx --no-install cap run android)
+# Or work in Android Studio:
+(cd mobile && npx --no-install cap open android)
+```
+
+For iOS development, select `--platform ios` when syncing and use the local
+Capacitor CLI or Xcode. This workflow exists, but its full native acceptance
+is still unverified.
+
+## Two commands, clear ownership
 
 ```text
 ob-capacitor init DIR --app-id ID --app-name NAME --bundle BUNDLE
 ob-capacitor sync --project DIR --bundle BUNDLE --platform ios|android
 ```
 
-Run them as `node deps/obelisk-capacitor/bin/ob-capacitor.mjs ...`.
+Invoke them with `node deps/obelisk-capacitor/bin/ob-capacitor.mjs`.
 
-### init
+**`init`** validates the bundle, refuses an existing destination, and prepares
+an app in an invocation-owned temporary directory. It installs the locked
+template with `npm ci`, sets the app ID/name and ownership marker, and stages
+the web payload. The destination appears only after initialization succeeds.
 
-Validates the bundle first, refuses an existing destination, then in a
-temporary directory: copies the locked application template, runs
-project-local `npm ci`, writes your appId/appName into `capacitor.config.json`
-(`webDir` stays `www`), stamps the `obeliskCapacitor` ownership marker, and
-stages the web tree. The destination appears only when everything succeeded;
-on failure only the invocation-owned temporary directory is removed. `init`
-needs Node/npm, not Xcode or the Android SDK.
+**`sync`** requires the ownership marker, `webDir=www` and an existing native
+project. It validates and stages a complete replacement before swapping the
+owned web payload, then invokes the application's installed Capacitor CLI.
+Invalid input leaves the old payload intact; native-sync failures propagate
+their exit status. It never mutates the source bundle or silently downloads
+a different CLI. Native source, signing configuration and plugin definitions
+remain application-owned.
 
-### sync
+## The bundle boundary
 
-Requires the ownership marker, `webDir=www` and the platform's native
-project. It validates and stages the complete replacement web tree before
-touching the previous payload, rejects symlinked destinations, never modifies
-the source bundle, and then invokes the application's **own** installed
-Capacitor CLI (`cap sync <platform>`) with an argument array - no command
-that could silently download another CLI. A failing native sync propagates
-its exit status; nothing is reported as a partial success.
+The core exporter produces:
 
-### The standard native workflow
+```text
+obelisk-web-bundle.json
+www/
+  index.html
+  ghcjs/                 # Optimized compiler output
+  static/                # Hashed assets and original-name aliases
+```
 
-1. `nix-build default.nix -A nixpkgs.webBundle.js -o result-mobile` (in your
-   Obelisk application).
-2. `ob-capacitor init DIR --app-id ... --app-name ... --bundle result-mobile`.
-3. In the generated application: `npx cap add android`, and on macOS
-   `npx cap add ios`. These native projects are **application-owned and
-   source-controlled**; sync regenerates only Capacitor's own sync output.
-4. After each frontend rebuild: rebuild the bundle, `ob-capacitor sync ...`,
-   then use the local `cap run`, `cap open`, or native build tools as usual.
+The manifest must specify `format=obelisk-web-bundle`, `version=1`,
+`target=js`, and `webDir=www`. The payload must include `www/ghcjs/all.js`.
+Only public `config/common` and `config/frontend` values belong in the
+bootstrap HTML—never `config/backend`, signing material or other secrets.
 
-`www/`, `node_modules/`, build products and signing secrets are ignored by
-the generated `.gitignore`.
+During staging, the CLI:
 
-## What the bundle must look like
+1. Parses the version-1 bootstrap HTML and switches `client` mode to
+   **`client-hash`**. Routes such as `/?q=a.b#item/a.b` keep dotted identifiers
+   out of Capacitor's asset-path handling; the query stays before the hash.
+2. Bundles the app's `native.mjs` as an ES2020 browser IIFE exposed as
+   `ObeliskCapacitor`, loading it synchronously before the deferred Haskell
+   entry point. The compiler's `all.js` is not rewritten.
+3. Copies regular files, without symlinks, Nix store dependencies or `.assets`
+   metadata. Every sync starts from the pristine artifact, so script tags do
+   not accumulate.
 
-The bundle directory (from `nix-build -A nixpkgs.webBundle.js`) is validated
-against `obelisk-web-bundle.json` (`"version": 1`, `"target": "js"`,
-`"webDir": "www"`) and must contain `www/index.html`, `www/ghcjs/all.js` and
-`www/static/`. During staging the sibling:
+**JavaScript only for native packaging.** WASM bundles are rejected with a
+rebuild instruction; the CLI never switches compilers or ships two runtimes.
+The GHC WASM backend's asynchronous JSFFI needs JSPI, which is unavailable in
+older WKWebView and Android WebView releases. Core's WASM web target is
+unchanged.
 
-- parses the bootstrap HTML and requires the version-1 structure
-  (`obelisk-frontend-mode` metadata with `content="client"` plus the deferred
-  `/ghcjs/all.js` entry), switching the mode to **`client-hash`** - Obelisk's
-  hash routing (`/?q=x#item/a.b`) suits Capacitor's local origins, whose
-  extensionless-path handling is not a general SPA fallback;
-- bundles the application-owned `native.mjs` with esbuild (browser IIFE,
-  `target=es2020`, global `ObeliskCapacitor`) to `www/obelisk-capacitor.js`,
-  loaded synchronously in the head before the deferred Haskell entry. The
-  compiler's `all.js` is never rewritten;
-- copies the payload as regular files (no symlinks, no Nix store references,
-  no `.assets` metadata).
+## Native plugins from Haskell
 
-Every sync starts from the pristine bundle artifact, so script tags cannot
-accumulate.
+The template's application-owned `native.mjs` exports:
 
-## Plugin interop (no second Haskell runtime)
+```js
+export { Capacitor } from '@capacitor/core';
+export { App } from '@capacitor/app';
+export { Device } from '@capacitor/device';
+```
 
-`native.mjs` is the application's plugin entry. The template exports
-`Capacitor` (core), `App` (`@capacitor/app`) and `Device`
-(`@capacitor/device`); add more official or custom plugins by exporting them
-there and adding their npm packages to the app's `package.json`.
+The public boundary is `globalThis.ObeliskCapacitor.{Capacitor,App,Device,...}`.
+Add a plugin dependency to the app, export it here, and sync. The
+[counter frontend](./examples/counter/frontend/src/Frontend.hs) calls the real
+`Device.getInfo()` through JSaddle and displays its platform/OS result.
+Promise rejections are rendered as errors, not swallowed.
 
-The public JS boundary is
-`globalThis.ObeliskCapacitor.{Capacitor,App,Device,...}`. From Haskell, use
-ordinary jsaddle (see `examples/counter/frontend/src/Frontend.hs`): the
-example's Device button calls the real `Device.getInfo()` and renders its
-native `platform`/`os` - through the documented plugin object, not the
-bridge's internals. Native Promise **rejections surface in the UI**; they are
-never swallowed.
+Lifecycle and URL-open events come from the official `App` plugin. Your app
+owns URL allowlists, route decoding and associated-domain/custom-scheme
+configuration; incoming URLs are not silently converted into navigation.
 
-App lifecycle and URL-open events come from the official `App` plugin.
-Applications remain responsible for URL allowlists, route decoding and
-associated-domain/custom-scheme setup; inbound URLs are never turned into
-navigation silently.
+### Coming from obelisk-ios-xcode?
 
-### Migrating from obelisk-ios-xcode
+The old integration booted the GHC RTS from `libfrontend.a` and forwarded
+UIKit/push/universal-link callbacks through StablePtr/C FFI. Capacitor is not
+ABI-compatible with it:
 
-`obelisk-ios-xcode` wrapped a native `libfrontend.a`, booted the GHC RTS and
-forwarded UIKit/push/universal-link callbacks through StablePtr/C FFI. None
-of that is ABI-compatible with Capacitor:
+- Lifecycle and URL callbacks become `App` plugin calls; notifications use
+  the appropriate push plugin.
+- Custom native code becomes a Capacitor plugin exported through `native.mjs`.
+  Native WKWebView handles and C FFI surfaces do not carry across.
+- The frontend artifact is a JavaScript web bundle, not a native static library.
 
-- native callbacks become plugin calls (`App` for lifecycle/URL opens, push
-  plugins for notifications, ...);
-- the WKWebView handle and C FFI surfaces are **not carried across** - custom
-  native code becomes a Capacitor plugin invoked through `native.mjs`;
-- the frontend artifact is now the JavaScript web bundle rather than a
-  cross-compiled static library.
+## Talking to your backend
 
-## Backend access
+Packaged assets run at `https://localhost` on Android and
+`capacitor://localhost` on iOS. Resolve backend requests against an explicit
+absolute origin—not the WebView's local origin.
 
-Capacitor's local origins are `capacitor://localhost` (iOS) and
-`https://localhost` (Android). Production uses packaged assets: do not set
-`server.url`, do not permit broad cleartext traffic, do not disable TLS
-checks, and do not patch all fetch/XHR requests.
+The example reads public `common/route`, trims and validates it, and shows a
+visible error if it is missing or invalid. Its backend allows precisely those
+two Capacitor origins, including CORS preflight. HTTPS terminates at an
+explicit reverse proxy; CI uses Caddy and an ephemeral test CA, trusted only
+by the Android debug build or the iOS simulator.
 
-The example resolves its backend origin from the public config
-`common/route` (trimmed and validated; a missing or invalid value renders a
-visible error instead of silently fetching the WebView's own origin) and
-allows precisely the two Capacitor origins on the backend, including
-preflight. HTTPS terminates at an explicit reverse proxy (Caddy in CI);
-cookies/OAuth flows do **not** automatically work cross-origin in a
-WebView - use token or plugin-based auth deliberately. Offline-only
-applications need no backend config.
+Production must not set `server.url`, permit broad cleartext traffic, disable
+TLS verification or patch every fetch/XHR request. Cross-origin web cookies
+and OAuth flows do not automatically work in a WebView—choose token or
+plugin-based authentication deliberately. Offline-only apps need no backend.
 
-## CI and release evidence
+## A small app with a real event loop
 
-`.github/workflows/mobile.yml` (PRs and `workflow_dispatch`) builds the
-counter example's web bundle once on Linux, transfers the **same bytes** to
-the platform jobs, and runs them inside a real iOS Simulator (XCUITest) and
-Android Emulator (UiAutomator2 + matching Chromedriver) against a real TLS
-backend built from the downloaded bundle (`examples/counter/native-backend.nix`
-- no second frontend cross-compilation). Assertions cover config-driven
-render, counter events, hashed assets, hash-route navigation/back/forward,
-reload at a dotted hash route with an encoded query, Android hardware back,
-a real backend state transition, native `Device.getInfo()` results, and
-visible failure when the backend is unreachable. Screenshots, Appium/browser
-logs and observed versions are uploaded as artifacts on every run.
+[`examples/counter`](./examples/counter) is the native acceptance reference:
 
-Both platform jobs are required for a sibling release; make them required
-status checks. Framework build floors (iOS 15+ / Android API 24+) say
-nothing about the OS/WebView versions actually exercised - those are recorded
-per run in `compatibility.json`. Simulator/emulator proof is what we claim:
-physical-device and signed-store distribution are not asserted.
+- A local counter driven by DOM events, `foldDyn` and `dynText`.
+- Public-config rendering and a decoded, content-hashed image.
+- Typed route navigation, back/forward history and reload at a dotted hash route.
+- A real asynchronous backend POST that changes server state.
+- Native `Device.getInfo()` through JSaddle and Capacitor.
+- Visible backend failure while the local counter remains interactive.
 
-## Signing and release
+It exercises live FRP and native integration, not just a static page. It is
+not a stress test, a large dynamic UI, or lifecycle/background-resume coverage.
 
-The native projects are yours: configure signing as you would in any
-Capacitor app - Xcode "Signing & Capabilities" / `xcodebuild` distribution
-options, Android `signingConfigs` with keystore properties kept **outside**
-Nix inputs and bundles. Private keys never belong in the bundle, the Nix
-store, or this repository.
+## CI and compatibility
 
-## Example
+The [mobile workflow](./.github/workflows/mobile.yml) runs on pull requests,
+`master` pushes and manual dispatch. It builds the JavaScript bundle once on
+Linux, then packages those bytes inside an Android Emulator WebView using
+UiAutomator2 and a matching Chromedriver. The backend is the real Obelisk
+server, built from the downloaded bundle without another frontend
+cross-compilation. The suite also exercises Android hardware back.
 
-[`examples/counter`](./examples/counter) is a real Obelisk application with
-its own immutable Obelisk pin, public config, hashed static assets, the
-plugin entry, and generated (source-controlled) `ios/` and `android/`
-projects. Its frontend exercises every assertion above.
+**Android is the required native gate.** iOS is disabled on ordinary pushes
+and PRs; manual dispatch with `run_ios=true` enables its non-blocking
+Simulator/XCUITest job. A skipped or failing iOS job cannot be recorded as
+verified or prevent a passing Android run from being recorded.
+
+Successful acceptance runs add the observed core/compiler/Capacitor/device/
+WebView tuple to [`compatibility.json`](./compatibility.json). Actions
+artifacts contain screenshots, logs and acceptance results. Framework build
+floors (iOS 15+ / Android API 24+) are not tested-platform claims. Emulator or
+simulator evidence says nothing about physical devices or signed store builds.
+
+## Signing and distribution
+
+Use the native projects' normal release tools: Xcode **Signing & Capabilities**
+and archive/distribution options, or Android `signingConfigs` with external
+keystore properties. Keep signing keys and credentials out of Nix inputs,
+bundles and source control. Sync does not take ownership of them.
 
 ## Development
 
-```bash
+```sh
 npm ci
-npm test          # bundle/cli/app unit + flow tests (node:test)
+npm test
 ```
+
+The Node tests cover bundle validation and CLI/application flows. They do not
+replace the native acceptance jobs.
+
+## About Obsidian Systems
+
+obelisk-capacitor is built by **[Obsidian Systems](https://obsidian.systems)**,
+maintainers of [Obelisk](https://github.com/obsidiansystems/obelisk),
+[Reflex](https://reflex-frp.org/) and
+[nix-thunk](https://github.com/obsidiansystems/nix-thunk).
+
+- Website — <https://obsidian.systems>
+- Blog — <https://blog.obsidian.systems>
+- GitHub — <https://github.com/obsidiansystems>

@@ -1,5 +1,6 @@
 module Backend where
 
+import Control.Applicative ((<|>))
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString (ByteString)
 import Obelisk.Route (pattern (:/))
@@ -45,7 +46,7 @@ apiIncrement count = do
   let originAllowed = case mOrigin of
         Just o | o `elem` allowedOrigins -> Just o
         _ -> Nothing
-  method OPTIONS $ case originAllowed of
+  method OPTIONS (case originAllowed of
     Nothing -> modifyResponse $ setResponseCode 403
     Just origin -> do
       modifyResponse $ setResponseCode 204
@@ -53,14 +54,14 @@ apiIncrement count = do
       modifyResponse $ setHeader "Access-Control-Allow-Methods" "POST, OPTIONS"
       modifyResponse $ setHeader "Access-Control-Allow-Headers" "Content-Type"
       modifyResponse $ setHeader "Access-Control-Max-Age" "600"
-      modifyResponse $ setHeader "Vary" "Origin"
-  method POST $ case originAllowed of
-    Nothing -> modifyResponse $ setResponseCode 403
-    Just origin -> do
-      n <- liftIO (modifyIORef' count (+ 1) >> readIORef count)
-      modifyResponse $ setHeader "Access-Control-Allow-Origin" origin
-      modifyResponse $ setHeader "Vary" "Origin"
-      writeText ("{\"count\":" <> fromString (show n) <> "}")
+      modifyResponse $ setHeader "Vary" "Origin")
+    <|> method POST (case originAllowed of
+      Nothing -> modifyResponse $ setResponseCode 403
+      Just origin -> do
+        n <- liftIO (modifyIORef' count (+ 1) >> readIORef count)
+        modifyResponse $ setHeader "Access-Control-Allow-Origin" origin
+        modifyResponse $ setHeader "Vary" "Origin"
+        writeText ("{\"count\":" <> fromString (show n) <> "}"))
 
 -- | Serve the app. This is the entry point of the backend executable, so it
 -- is what @ob-run@ relinks and restarts on each change; under @ob-repl@ it

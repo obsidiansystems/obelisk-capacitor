@@ -16,6 +16,18 @@ wraps, kept as the sibling's acceptance reference.
 - `native-backend.nix` builds the test backend from a *downloaded* bundle, so
   native CI never cross-compiles a second frontend.
 
+Android is the required native CI gate. iOS is temporarily opt-in and
+non-blocking (`workflow_dispatch` with `run_ios=true`); its full acceptance
+remains unverified. Passing tuples and run links live in
+[`compatibility.json`](../../compatibility.json).
+
+The frontend exercises live Reflex-DOM behavior: a `foldDyn` counter,
+route-driven widget replacement, asynchronous XHR responses, and JSaddle
+effects displaying native device information. It is a small integration
+smoke app, not a large-UI or lifecycle stress test. The native suite checks
+both successful backend state changes and visible failures while local
+events remain responsive.
+
 ## Rebuild everything locally
 
 ```bash

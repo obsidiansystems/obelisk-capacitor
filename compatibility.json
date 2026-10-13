@@ -1,5 +1,4 @@
 {
-  "$schema": "./compatibility.schema.json",
   "format": "obelisk-capacitor-compatibility",
   "version": 1,
   "note": "Platforms and toolchains actually exercised. Absence from this file means untested, not working. A format version is not a promise that any compiler runs on any WebView.",
@@ -41,7 +40,15 @@
   ],
   "native-ci": {
     "workflow": ".github/workflows/mobile.yml",
-    "ios": { "pending-first-run": "macos-15, Xcode 26.2, iOS Simulator 26.2, iPhone 16 - row appears after the first hosted run" },
-    "android": { "pending-first-run": "ubuntu-24.04, JDK 17, API 35 emulator (google_apis/x86_64), compileSdk 36/minSdk 24 - row appears after the first hosted run" }
+    "ios": {
+      "required": false,
+      "recorded": false,
+      "status": "Deferred: opt-in workflow_dispatch job. Full iOS acceptance is unverified; Xcode 26.2 / WebDriverAgent build remains unresolved."
+    },
+    "android": {
+      "required": true,
+      "recorded": false,
+      "pending-first-run": "ubuntu-24.04, JDK 21, API 35 emulator (google_apis/x86_64), compileSdk 36/minSdk 24 - row appears after a complete passing hosted acceptance run"
+    }
   }
 }

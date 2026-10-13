@@ -187,16 +187,25 @@ try {
 
   // 10. Backend unavailable: the UI stays usable and the failure is visible.
   if (process.env.CADDY_PID) {
+    const countBefore = Number(await driver.execute(() => document.querySelector('#count').textContent));
     try { process.kill(Number(process.env.CADDY_PID), 'SIGKILL'); } catch {}
     await new Promise((r) => setTimeout(r, 1000));
     await driver.execute(() => document.querySelector('#backend-inc').click());
     await driver.waitUntil(async () => /HTTP 0/.test(await driver.execute(() => document.querySelector('#backend-result')?.textContent ?? '')), { timeout: 30000 });
     // Local UI still works.
     await driver.execute(() => document.querySelector('#counter-inc').click());
-    await waitText(driver, '#count', '2');
+    await waitText(driver, '#count', String(countBefore + 1));
   }
 
   await shot(driver, 'final');
+  await writeFile(`${ARTIFACTS}/acceptance-${OS}.json`, JSON.stringify({
+    platform: OS,
+    device,
+    userAgent: await driver.execute(() => navigator.userAgent),
+    reloadedRoute: urlReload,
+    backendResponse: backend1,
+    backendUnavailable: Boolean(process.env.CADDY_PID),
+  }, null, 2) + '\n');
   console.log(`NATIVE-AcCEPTANCE-${OS}: ALL ASSERTIONS PASSED`);
 } catch (e) {
   failed = true;
