@@ -108,15 +108,13 @@ try {
   await waitForAppium();
   driver = await remote({ hostname: '127.0.0.1', port: 4723, path: '/', capabilities: caps, logLevel: 'error' });
 
-  // Initial screenshot before any interaction.
-  await shot(driver, 'initial');
-
   // Discover the WEBVIEW context and switch into it.
   const contexts = await driver.getContexts();
   const webview = contexts.find((c) => /WEBVIEW/i.test(typeof c === 'string' ? c : c.id));
   if (!webview) throw new Error(`no WEBVIEW context; contexts: ${JSON.stringify(contexts)}`);
   await driver.switchContext(webview);
   await driver.waitUntil(async () => (await driver.execute(() => !!document.querySelector('#count'))), { timeout: 60000 });
+  await shot(driver, 'initial');
 
   // 1. Initial config-driven render.
   const origin = await driver.execute(() => document.querySelector('#backend-origin')?.textContent);
@@ -126,7 +124,7 @@ try {
 
   // 2. Local counter 0 -> 1 on tap.
   assert.equal(await driver.execute(() => document.querySelector('#count')?.textContent), '0');
-  await driver.execute(() => document.querySelector('#counter-inc').click());
+  await (await driver.$('#counter-inc')).click();
   await waitText(driver, '#count', '1');
 
   // 3. Hashed static asset decoded correctly (hashed URL, really loaded).
@@ -138,7 +136,7 @@ try {
   assert.ok(logo.w > 0, `hashed logo must actually decode, got ${JSON.stringify(logo)}`);
 
   // 4. Typed route navigation: dotted path segment + encoded query in the hash.
-  await driver.execute(() => document.querySelector('#link-item').click());
+  await (await driver.$('#link-item')).click();
   await driver.waitUntil(async () => (await driver.execute(() => !!document.querySelector('#item-marker'))), { timeout: 30000 });
   const urlItem = await webviewUrl(driver);
   assert.match(urlItem, /\/\?q=a\.b#item\/a\.b$/);
@@ -160,13 +158,13 @@ try {
   await driver.waitUntil(async () => (await driver.execute(() => !!document.querySelector('#home-marker'))), { timeout: 30000 });
 
   // 7. Real backend state transition initiated by the UI (via TLS proxy).
-  await driver.execute(() => document.querySelector('#backend-inc').click());
+  await (await driver.$('#backend-inc')).click();
   await driver.waitUntil(async () => /HTTP 200/.test(await driver.execute(() => document.querySelector('#backend-result')?.textContent ?? '')), { timeout: 30000 });
   const backend1 = await driver.execute(() => document.querySelector('#backend-result')?.textContent);
   assert.match(backend1, /"count":1/);
 
   // 8. Device.getInfo(): the native platform, not the web fallback.
-  await driver.execute(() => document.querySelector('#device-btn').click());
+  await (await driver.$('#device-btn')).click();
   await driver.waitUntil(async () => {
     const t = await driver.execute(() => document.querySelector('#device-result')?.textContent ?? '');
     return t && t !== 'pending' && t !== 'waiting for the ObeliskCapacitor bridge';
@@ -177,7 +175,9 @@ try {
 
   // 9. Android hardware back in NATIVE_APP context: item -> main route.
   if (OS === 'android') {
-    await driver.execute(() => window.history.forward());
+    // A real user gesture creates a traversable native back-stack entry.
+    // Synthetic element.click() can trigger Chromium's history intervention.
+    await (await driver.$('#link-item')).click();
     await driver.waitUntil(async () => (await driver.execute(() => !!document.querySelector('#item-marker'))), { timeout: 30000 });
     await driver.switchContext('NATIVE_APP');
     await driver.pressKeyCode(4);
@@ -190,10 +190,10 @@ try {
     const countBefore = Number(await driver.execute(() => document.querySelector('#count').textContent));
     try { process.kill(Number(process.env.CADDY_PID), 'SIGKILL'); } catch {}
     await new Promise((r) => setTimeout(r, 1000));
-    await driver.execute(() => document.querySelector('#backend-inc').click());
+    await (await driver.$('#backend-inc')).click();
     await driver.waitUntil(async () => /HTTP 0/.test(await driver.execute(() => document.querySelector('#backend-result')?.textContent ?? '')), { timeout: 30000 });
     // Local UI still works.
-    await driver.execute(() => document.querySelector('#counter-inc').click());
+    await (await driver.$('#counter-inc')).click();
     await waitText(driver, '#count', String(countBefore + 1));
   }
 

@@ -235,7 +235,9 @@ The [mobile workflow](./.github/workflows/mobile.yml) runs on pull requests,
 Linux, then packages those bytes inside an Android Emulator WebView using
 UiAutomator2 and a matching Chromedriver. The backend is the real Obelisk
 server, built from the downloaded bundle without another frontend
-cross-compilation. The suite also exercises Android hardware back.
+cross-compilation. Buttons and links use WebDriver click commands, not
+synthetic JavaScript clicks; Android hardware back is exercised separately
+in the native context.
 
 **Android is the required native gate.** iOS is disabled on ordinary pushes
 and PRs; manual dispatch with `run_ios=true` enables its non-blocking
