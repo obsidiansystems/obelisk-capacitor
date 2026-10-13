@@ -69,6 +69,36 @@
           "backendUnavailable": true
         }
       }
+    },
+    {
+      "what": "Native acceptance - Android Emulator (UiAutomator2) (hosted CI, real WebView)",
+      "obelisk": "obsidiansystems/obelisk@3d3ccbdc519070821965014771a202bf46c33ac0",
+      "frontend-target": "js",
+      "compiler": {
+        "driver": "nixpkgs",
+        "backend": "javascript",
+        "version": "9.12.3"
+      },
+      "capacitor": "8.5.3",
+      "capacitor-plugins": {
+        "@capacitor/app": "8.1.2",
+        "@capacitor/device": "8.0.3"
+      },
+      "device": "platform=android os=android 15 model=sdk_gphone64_x86_64",
+      "webview": "Mozilla/5.0 (Linux; Android 15; sdk_gphone64_x86_64 Build/AE3A.240806.043; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.219 Mobile Safari/537.36",
+      "bundle-sha256": "a1847b4b296345c350cee6a1ffb74dafccbacf282195f71587c91e635f4cb6d4",
+      "evidence": {
+        "where": "https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38396514386",
+        "summary": "15\n    versionName=124.0.6367.219\n\n------------------------------------------------------------\nGradle 8.14.3\n------------------------------------------------------------\n\nBuild time:    2025-07-04 13:15:44 UTC\nRevision:      e5ee1df3d88b8ca3a8074787a94f373e3090e1db\n\nKotlin:        2.0.21\nGroovy:        3.0.24\nAnt:           Apache Ant(TM) version 1.10.15 compiled on August 25 2024\nLauncher JVM:  21.0.12.1 (Eclipse Adoptium 21.0.12.1+1-LTS)\nDaemon JVM:    /usr/lib/jvm/temurin-21-jdk-amd64 (no JDK specified, using current Java home)\nOS:            Linux 6.17.0-1022-azure amd64\n\n2026-10-13 12:47:14:348 [HTTP] --> POST /session {\"capabilities\":{\"alwaysMatch\":{\"platformName\":\"Android\",\"appium:automationName\":\"UiAutomator2\",\"appium:app\":\"/home/runner/work/obelisk-capacitor/obelisk-capacitor/examples/counter/app/android/app/build/outputs/apk/debug/app-debug.apk\",\"appium:udid\":\"emulator-5554\",\"appium:noReset\":true,\"appium:autoGrantPermissions\":true,\"appium:chromedriverExecutableDir\":\"/home/runner/work/_temp/chromedrivers\",\"appium:showChromedriverLog\":true,\"appium:webviewConnectTimeout\":30000},\"firstMatch\":[{}]}}",
+        "acceptance": {
+          "platform": "android",
+          "device": "platform=android os=android 15 model=sdk_gphone64_x86_64",
+          "userAgent": "Mozilla/5.0 (Linux; Android 15; sdk_gphone64_x86_64 Build/AE3A.240806.043; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.219 Mobile Safari/537.36",
+          "reloadedRoute": "https://localhost/?q=a.b#item/a.b",
+          "backendResponse": "HTTP 200 {\"count\":1}",
+          "backendUnavailable": true
+        }
+      }
     }
   ],
   "native-ci": {
@@ -81,8 +111,8 @@
     "android": {
       "required": true,
       "recorded": true,
-      "last-green-run": "https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38332685416"
+      "last-green-run": "https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38396514386"
     },
-    "last-required-green-run": "https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38332685416"
+    "last-required-green-run": "https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38396514386"
   }
 }
