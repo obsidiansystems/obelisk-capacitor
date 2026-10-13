@@ -6,7 +6,7 @@
   "description": "iOS acceptance-test dependencies (kept separate so Linux jobs never install the Xcode driver).",
   "dependencies": {
     "appium": "3.8.0",
-    "appium-xcuitest-driver": "12.17.1",
+    "appium-xcuitest-driver": "12.13.2",
     "webdriverio": "10.0.2"
   }
 }

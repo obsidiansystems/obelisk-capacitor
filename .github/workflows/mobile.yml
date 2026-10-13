@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 240
     env:
       XCODE_APP: /Applications/Xcode_26.2.app
-      SIM_RUNTIME: iOS26.2
+      SIM_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-26-2
       SIM_DEVICE: iPhone 16
     steps:
       - uses: actions/checkout@v4
@@ -177,26 +177,43 @@ jobs:
       - name: Boot the simulator
         run: |
           set -euxo pipefail
-          find_runtime() {
-            xcrun simctl list runtimes \
-              | grep -oE 'com.apple.CoreSimulator.SimRuntime.iOS-[0-9]+-[0-9]+' \
-              | sort -V | tail -1
-          }
-          RUNTIME_ID=$(find_runtime || true)
-          if [ -z "$RUNTIME_ID" ]; then
+          RUNTIME_ID="com.apple.CoreSimulator.SimRuntime.iOS-26-2"
+          RUNTIME_JSON=$(xcrun simctl list runtimes --json)
+          echo "$RUNTIME_JSON" | python3 -c '
+          import json, sys
+          rid = "com.apple.CoreSimulator.SimRuntime.iOS-26-2"
+          rts = [r for r in json.load(sys.stdin)["runtimes"] if r["identifier"] == rid]
+          if not rts:
+              sys.stderr.write(f"runtime {rid} not available\n")
+              sys.exit(1)
+          print(rts[0]["version"])
+          ' > "$RUNNER_TEMP/runtime-version.txt" || {
             xcrun simctl list runtimes || true
-            xcodebuild -downloadPlatform iOS
-            RUNTIME_ID=$(find_runtime)
-          fi
-          UDID=$(xcrun simctl list devices available | grep -m1 "iPhone 16 (" | grep -oE '[0-9A-Fa-f-]{36}' || true)
-          if [ -z "$UDID" ]; then
-            UDID=$(xcrun simctl create "obelisk-test" "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME_ID")
-          fi
+            exit 1
+          }
+          PLATFORM_VERSION=$(cat "$RUNNER_TEMP/runtime-version.txt")
+          # Always create a fresh simulator on the pinned runtime; never reuse
+          # a device that merely shares the display name.
+          UDID=$(xcrun simctl create "$SIM_DEVICE" \
+            "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME_ID")
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl keychain "$UDID" add-root-cert "$CA_PEM"
-          echo "DEVICE_UDID=$UDID" >> "$GITHUB_ENV"
-          xcrun simctl list runtimes | tee "$RUNNER_TEMP/versions-ios.txt"
+          {
+            echo "DEVICE_UDID=$UDID"
+            echo "PLATFORM_VERSION=$PLATFORM_VERSION"
+          } >> "$GITHUB_ENV"
+          {
+            echo "simulator: $SIM_DEVICE (udid $UDID)"
+            echo "runtime: $RUNTIME_ID version $PLATFORM_VERSION"
+          } > "$RUNNER_TEMP/versions-ios.txt"
           xcodebuild -version >> "$RUNNER_TEMP/versions-ios.txt"
+      - name: Tear down the simulator
+        if: always()
+        run: |
+          if [ -n "${DEVICE_UDID:-}" ]; then
+            xcrun simctl shutdown "$DEVICE_UDID" 2>/dev/null || true
+            xcrun simctl delete "$DEVICE_UDID" 2>/dev/null || true
+          fi
       - name: Build the app
         run: |
           cd examples/counter/app
@@ -207,6 +224,9 @@ jobs:
             -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
           echo "APP=$PWD/build/ios/Build/Products/Debug-iphonesimulator/App.app" >> "$GITHUB_ENV"
+      # The pinned appium-xcuitest-driver 12.13.2 bundles WDA 16.12.10: the last
+      # WDA release before appium/WebDriverAgent#1271 added a copy phase that
+      # only resolves on Xcode 26.6+/27.1 and fails lstat on Xcode 26.2.
       - name: Build WebDriverAgent standalone (full log on failure)
         run: |
           (cd test/ios && npm ci --no-audit --no-fund)
@@ -229,7 +249,7 @@ jobs:
             PLATFORM_DIR=test/ios \
             DEVICE_UDID="$DEVICE_UDID" \
             DEVICE_NAME="$SIM_DEVICE" \
-            PLATFORM_VERSION=26.2 \
+            PLATFORM_VERSION="$PLATFORM_VERSION" \
             CADDY_PID="$(cat "$RUNNER_TEMP/caddy.pid")" \
             ARTIFACTS_DIR="$RUNNER_TEMP/artifacts" \
             node test/native.mjs

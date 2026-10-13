@@ -122,6 +122,119 @@ try {
   // semantic assertion is on the trimmed text.
   assert.match(origin.trim(), new RegExp(`^common/route: ${process.env.BACKEND_ORIGIN?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 
+  // 1b. iOS-only native-touch scenario: real taps, a slider drag to both
+  // endpoints, and card swipes through the scroll-snap track. Gestures are
+  // W3C touch actions in NATIVE_APP; state assertions run back in the saved
+  // WEBVIEW context. Webview CSS rectangles are mapped into the native
+  // webview rectangle via the viewport scale — no JS-driven positioning.
+  if (OS === 'ios') {
+    const cssRect = (sel) => driver.execute((s) => {
+      const r = document.querySelector(s).getBoundingClientRect();
+      return {
+        left: r.left, top: r.top, width: r.width, height: r.height,
+        vw: document.documentElement.clientWidth, vh: window.innerHeight,
+      };
+    }, sel);
+    const isVisible = (sel) => driver.execute((s) => {
+      const el = document.querySelector(s);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.left >= -1 && r.right <= window.innerWidth + 1
+        && r.top >= -1 && r.bottom <= window.innerHeight + 1;
+    }, sel);
+    // One native gesture: tap for a single point, drag otherwise.
+    const gesture = async (pts) => {
+      const nat = await driver.switchContext('NATIVE_APP')
+        .then(() => driver.$$('**/XCUIElementTypeWebView'))
+        .then(async (els) => {
+          if (!els.length) throw new Error('no XCUIElementTypeWebView in NATIVE_APP');
+          const el = els[els.length - 1];
+          const loc = await el.getLocation();
+          const size = await el.getSize();
+          return { x: loc.x, y: loc.y, w: size.width };
+        });
+      const scale = await driver.switchContext(webview)
+        .then(() => driver.execute(() => document.documentElement.clientWidth))
+        .then((cw) => nat.w / cw);
+      const mapped = pts.map(({ x, y }) => ({
+        nx: Math.round(nat.x + x * scale),
+        ny: Math.round(nat.y + y * scale),
+      }));
+      await driver.switchContext('NATIVE_APP');
+      await driver.performActions([{
+        type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' },
+        actions: mapped.length === 1
+          ? [
+              { type: 'pointerMove', duration: 0, x: mapped[0].nx, y: mapped[0].ny },
+              { type: 'pointerDown', button: 0 },
+              { type: 'pause', duration: 60 },
+              { type: 'pointerUp', button: 0 },
+            ]
+          : [
+              { type: 'pointerMove', duration: 0, x: mapped[0].nx, y: mapped[0].ny },
+              { type: 'pointerDown', button: 0 },
+              ...mapped.slice(1).map((p) => ({ type: 'pointerMove', duration: 140, x: p.nx, y: p.ny })),
+              { type: 'pause', duration: 100 },
+              { type: 'pointerUp', button: 0 },
+            ],
+      }]);
+      await driver.releaseActions();
+      await driver.switchContext(webview);
+    };
+    const center = (r) => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+
+    // Tap + Increment five times with native touches; state read in WEBVIEW.
+    for (let i = 0; i < 5; i++) {
+      await gesture([center(await cssRect('#counter-inc'))]);
+      await waitText(driver, '#count', String(i + 1));
+    }
+    assert.equal(await driver.execute(() => document.querySelector('#count')?.textContent), '5');
+
+    // Drag the goal slider to both endpoints (min 4, max 24). A drag from
+    // mid-track to an endpoint ends exactly at that endpoint.
+    const goal = await cssRect('#counter-goal');
+    const gy = goal.top + goal.height / 2;
+    const midX = goal.left + goal.width / 2;
+    await gesture([{ x: midX, y: gy }, { x: goal.left - 4, y: gy }]);
+    await waitText(driver, '#goal-value', '4');
+    await driver.switchContext('NATIVE_APP');
+    await shot(driver, 'goal-min');
+    await driver.switchContext(webview);
+    await gesture([{ x: midX, y: gy }, { x: goal.right + 4, y: gy }]);
+    await waitText(driver, '#goal-value', '24');
+    await driver.switchContext('NATIVE_APP');
+    await shot(driver, 'goal-max');
+    await driver.switchContext(webview);
+    // The drag must not have touched the counter.
+    assert.equal(await driver.execute(() => document.querySelector('#count')?.textContent), '5');
+
+    // Native horizontal swipes across the scroll-snap track and back.
+    const cards = await cssRect('#link-main'); // any element gives viewport metrics
+    const swipeY = Math.min(cards.vh * 0.55, 500);
+    const swipe = async (dir) => gesture([
+      { x: dir > 0 ? cards.vw * 0.85 : cards.vw * 0.15, y: swipeY },
+      { x: dir > 0 ? cards.vw * 0.15 : cards.vw * 0.85, y: swipeY },
+    ]);
+    await swipe(1);
+    await driver.waitUntil(async () => isVisible('#backend-inc'), { timeout: 15000 });
+    await swipe(1);
+    await driver.waitUntil(async () => isVisible('#device-btn'), { timeout: 15000 });
+    await swipe(-1);
+    await driver.waitUntil(async () => isVisible('#backend-inc'), { timeout: 15000 });
+    await swipe(-1);
+    await driver.waitUntil(async () => isVisible('#counter-inc'), { timeout: 15000 });
+    await driver.switchContext('NATIVE_APP');
+    await shot(driver, 'swipe-roundtrip');
+    await driver.switchContext(webview);
+    // State survived the swipe round trip because all cards stay mounted.
+    assert.equal(await driver.execute(() => document.querySelector('#count')?.textContent), '5');
+    assert.equal(await driver.execute(() => document.querySelector('#goal-value')?.textContent), '24');
+
+    // Reset so the existing acceptance sequence resumes from count 0.
+    await (await driver.$('#counter-reset')).click();
+    await waitText(driver, '#count', '0');
+  }
+
   // 2. Local counter 0 -> 1 on tap.
   assert.equal(await driver.execute(() => document.querySelector('#count')?.textContent), '0');
   await (await driver.$('#counter-inc')).click();
