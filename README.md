@@ -224,6 +224,22 @@ authentication for your application. Offline-only apps need no backend.
 This is an FRP and native-integration smoke test. It does not cover large
 dynamic UIs, sustained load or background/resume behavior.
 
+On x86_64 Linux, run the example from this repository root:
+
+```sh
+NIXPKGS_ACCEPT_ANDROID_SDK_LICENSE=1 \
+  nix-shell examples/counter/android.nix --run counter-android
+```
+
+This accepts the Android SDK licenses for the invocation. Nix supplies the
+SDK, emulator, Node and Java. The runner builds the app and backend, configures
+local HTTPS, and opens the emulator. Android Studio is not needed.
+Your user needs read/write access to `/dev/kvm`.
+
+Press Ctrl+C to stop the emulator and services. See the
+[local runner instructions](./examples/counter#run-android-with-nix) for
+headless mode, file handling and manual checks.
+
 ## CI
 
 The [mobile workflow](./.github/workflows/mobile.yml) runs on pull requests,
