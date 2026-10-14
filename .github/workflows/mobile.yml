@@ -207,13 +207,6 @@ jobs:
             echo "runtime: $RUNTIME_ID version $PLATFORM_VERSION"
           } > "$RUNNER_TEMP/versions-ios.txt"
           xcodebuild -version >> "$RUNNER_TEMP/versions-ios.txt"
-      - name: Tear down the simulator
-        if: always()
-        run: |
-          if [ -n "${DEVICE_UDID:-}" ]; then
-            xcrun simctl shutdown "$DEVICE_UDID" 2>/dev/null || true
-            xcrun simctl delete "$DEVICE_UDID" 2>/dev/null || true
-          fi
       - name: Build the app
         run: |
           cd examples/counter/app
@@ -267,6 +260,15 @@ jobs:
           name: ios-evidence
           path: ${{ runner.temp }}/artifacts/
           retention-days: 14
+      # Job cleanup, not mid-job: the simulator must stay alive through the
+      # app, WDA and Appium steps.
+      - name: Tear down the simulator
+        if: always()
+        run: |
+          if [ -n "${DEVICE_UDID:-}" ]; then
+            xcrun simctl shutdown "$DEVICE_UDID" 2>/dev/null || true
+            xcrun simctl delete "$DEVICE_UDID" 2>/dev/null || true
+          fi
 
   android:
     runs-on: ubuntu-24.04
