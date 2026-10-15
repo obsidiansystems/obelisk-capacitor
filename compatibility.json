@@ -256,7 +256,7 @@
     "ios": {
       "required": false,
       "recorded": false,
-      "status": "Deferred: opt-in workflow_dispatch job. Full iOS acceptance is unverified; Xcode 26.2 / WebDriverAgent build remains unresolved."
+      "status": "Unverified: Xcode 26.2 app and WebDriverAgent builds passed on iOS 26.2; run 38696852546 timed out creating the Appium session before acceptance."
     },
     "android": {
       "required": true,
