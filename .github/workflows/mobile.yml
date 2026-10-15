@@ -177,14 +177,14 @@ jobs:
       - name: Boot the simulator
         run: |
           set -euxo pipefail
-          RUNTIME_ID="com.apple.CoreSimulator.SimRuntime.iOS-26-2"
+          RUNTIME_ID="$SIM_RUNTIME"
           RUNTIME_JSON=$(xcrun simctl list runtimes --json)
           echo "$RUNTIME_JSON" | python3 -c '
-          import json, sys
-          rid = "com.apple.CoreSimulator.SimRuntime.iOS-26-2"
-          rts = [r for r in json.load(sys.stdin)["runtimes"] if r["identifier"] == rid]
+          import json, os, sys
+          rid = os.environ["SIM_RUNTIME"]
+          rts = [r for r in json.load(sys.stdin)["runtimes"] if r["identifier"] == rid and r.get("isAvailable")]
           if not rts:
-              sys.stderr.write(f"runtime {rid} not available\n")
+              sys.stderr.write(f"required runtime {rid} is missing or unavailable\n")
               sys.exit(1)
           print(rts[0]["version"])
           ' > "$RUNNER_TEMP/runtime-version.txt" || {
@@ -196,8 +196,6 @@ jobs:
           # a device that merely shares the display name.
           UDID=$(xcrun simctl create "$SIM_DEVICE" \
             "com.apple.CoreSimulator.SimDeviceType.iPhone-16" "$RUNTIME_ID")
-          xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl keychain "$UDID" add-root-cert "$CA_PEM"
           {
             echo "DEVICE_UDID=$UDID"
             echo "PLATFORM_VERSION=$PLATFORM_VERSION"
@@ -207,19 +205,19 @@ jobs:
             echo "runtime: $RUNTIME_ID version $PLATFORM_VERSION"
           } > "$RUNNER_TEMP/versions-ios.txt"
           xcodebuild -version >> "$RUNNER_TEMP/versions-ios.txt"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl keychain "$UDID" add-root-cert "$CA_PEM"
       - name: Build the app
         run: |
+          set -euo pipefail
           cd examples/counter/app
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
             -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
             -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build \
-            | xcbeautify --quieter || xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
-            -destination "platform=iOS Simulator,id=$DEVICE_UDID" \
-            -derivedDataPath build/ios CODE_SIGNING_ALLOWED=NO build
+            2>&1 | tee "$RUNNER_TEMP/app-build.log" | xcbeautify --quieter
           echo "APP=$PWD/build/ios/Build/Products/Debug-iphonesimulator/App.app" >> "$GITHUB_ENV"
-      # The pinned appium-xcuitest-driver 12.13.2 bundles WDA 16.12.10: the last
-      # WDA release before appium/WebDriverAgent#1271 added a copy phase that
-      # only resolves on Xcode 26.6+/27.1 and fails lstat on Xcode 26.2.
+      # Driver 12.13.2 bundles WDA 16.12.10, before the copy phase that expects
+      # a dylib absent from Xcode 26.2: https://github.com/appium/WebDriverAgent/pull/1271
       - name: Build WebDriverAgent standalone (full log on failure)
         run: |
           (cd test/ios && npm ci --no-audit --no-fund)

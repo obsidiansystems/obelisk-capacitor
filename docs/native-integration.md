@@ -63,6 +63,29 @@ Run `cap add ios` only once. Later frontend changes need a rebuild and sync.
 Capacitor 8 uses Swift Package Manager. Open `mobile/ios/App/App.xcodeproj`
 and select the `App` scheme; no CocoaPods workspace is required.
 
+Hosted simulator acceptance is opt-in and non-blocking. Open the
+[mobile workflow](https://github.com/obsidiansystems/obelisk-capacitor/actions/workflows/mobile.yml),
+choose **Run workflow**, select `master`, and enable
+**Run the non-blocking iOS Simulator acceptance job**. With Actions write
+permission, the equivalent CLI command is:
+
+```sh
+gh workflow run mobile.yml --repo obsidiansystems/obelisk-capacitor \
+  --ref master -f run_ios=true
+```
+
+The job targets Xcode 26.2 and a fresh iPhone 16 simulator on iOS 26.2,
+using the same Linux-built web bundle as Android. The test driver is pinned
+to XCUITest 12.13.2 (bundled WebDriverAgent 16.12.10) to avoid the copy phase
+introduced by [WebDriverAgent PR 1271](https://github.com/appium/WebDriverAgent/pull/1271),
+which expects a dylib missing from Xcode 26.2.
+
+Check the iOS acceptance step itself, not just the overall workflow status.
+The `ios-evidence` artifact contains build/Appium logs, runtime versions and
+touch screenshots; `acceptance-ios.json` is emitted only after all assertions
+pass. The record job requires Android acceptance too and preserves iOS as
+optional. No simulator result is claimed until that evidence is recorded.
+
 ## Signing
 
 Configure signing in the application-owned native project. Use Android
