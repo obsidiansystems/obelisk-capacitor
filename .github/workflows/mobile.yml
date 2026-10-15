@@ -241,6 +241,7 @@ jobs:
             DEVICE_UDID="$DEVICE_UDID" \
             DEVICE_NAME="$SIM_DEVICE" \
             PLATFORM_VERSION="$PLATFORM_VERSION" \
+            WDA_DERIVED_DATA="$RUNNER_TEMP/wda-dd" \
             CADDY_PID="$(cat "$RUNNER_TEMP/caddy.pid")" \
             ARTIFACTS_DIR="$RUNNER_TEMP/artifacts" \
             node test/native.mjs

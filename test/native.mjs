@@ -11,6 +11,7 @@
 //   CHROMEDRIVER_EXECUTABLE_DIR (android only)
 //   DEVICE_UDID    simulator udid / emulator serial
 //   PLATFORM_VERSION / DEVICE_NAME (ios)
+//   WDA_DERIVED_DATA prebuilt WebDriverAgent derived-data directory (ios)
 //   CADDY_PID      optional: TLS proxy pid, killed to test visible backend failure
 //   ARTIFACTS_DIR  where screenshots/logs are written
 import assert from 'node:assert/strict';
@@ -21,6 +22,7 @@ import { resolve } from 'node:path';
 
 const OS = process.env.APPIUM_OS;
 assert.ok(OS === 'ios' || OS === 'android', 'APPIUM_OS must be ios or android');
+if (OS === 'ios') assert.ok(process.env.WDA_DERIVED_DATA, 'WDA_DERIVED_DATA must point to the standalone WDA build');
 const PLATFORM_DIR = resolve(process.env.PLATFORM_DIR);
 const ARTIFACTS = resolve(process.env.ARTIFACTS_DIR || 'test-artifacts');
 const req = createRequire(resolve(PLATFORM_DIR, 'package.json'));
@@ -68,10 +70,14 @@ const caps = OS === 'ios'
       'appium:deviceName': process.env.DEVICE_NAME || 'iPhone 16',
       'appium:platformVersion': process.env.PLATFORM_VERSION || '26.2',
       'appium:udid': process.env.DEVICE_UDID,
+      // simctl already booted this device without a Simulator.app window.
+      'appium:isHeadless': true,
       'appium:noReset': true,
       'appium:autoAcceptAlerts': true,
       'appium:webviewConnectTimeout': 30000,
       'appium:useNewWDA': true,
+      'appium:usePrebuiltWDA': true,
+      'appium:derivedDataPath': process.env.WDA_DERIVED_DATA,
       'appium:showXcodeLog': true,
       'appium:wdaLaunchTimeout': 240000,
       'appium:wdaConnectionTimeout': 240000,
@@ -106,7 +112,12 @@ let driver;
 let failed = false;
 try {
   await waitForAppium();
-  driver = await remote({ hostname: '127.0.0.1', port: 4723, path: '/', capabilities: caps, logLevel: 'error' });
+  driver = await remote({
+    hostname: '127.0.0.1', port: 4723, path: '/', capabilities: caps, logLevel: 'error',
+    // Allow WDA startup to finish; retrying POST /session races the first
+    // session on the same UDID rather than cancelling its unfinished setup.
+    ...(OS === 'ios' ? { connectionRetryTimeout: 600000, connectionRetryCount: 0 } : {}),
+  });
 
   // Discover the WEBVIEW context and switch into it.
   const contexts = await driver.getContexts();

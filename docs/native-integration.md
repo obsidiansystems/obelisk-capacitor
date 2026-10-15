@@ -49,7 +49,11 @@ For local HTTPS testing, use the [counter runner](../examples/counter#run-androi
 
 ## iOS
 
-Full iOS acceptance remains unverified. Development requires macOS and Xcode.
+Full iOS acceptance remains unverified. The app and standalone WebDriverAgent
+built successfully on Xcode 26.2 / iOS 26.2 in
+[run 38696852546](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38696852546),
+but Appium session creation timed out before the app assertions began.
+Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:
 
 ```sh
@@ -79,12 +83,15 @@ using the same Linux-built web bundle as Android. The test driver is pinned
 to XCUITest 12.13.2 (bundled WebDriverAgent 16.12.10) to avoid the copy phase
 introduced by [WebDriverAgent PR 1271](https://github.com/appium/WebDriverAgent/pull/1271),
 which expects a dylib missing from Xcode 26.2.
+CI keeps the prebooted simulator headless and uses that standalone WDA build.
+Session creation has a ten-minute client deadline and no client retries, so
+a slow startup does not create competing sessions on the same device.
 
 Check the iOS acceptance step itself, not just the overall workflow status.
 The `ios-evidence` artifact contains build/Appium logs, runtime versions and
 touch screenshots; `acceptance-ios.json` is emitted only after all assertions
 pass. The record job requires Android acceptance too and preserves iOS as
-optional. No simulator result is claimed until that evidence is recorded.
+optional. No simulator acceptance result is claimed until that evidence is recorded.
 
 ## Signing
 
