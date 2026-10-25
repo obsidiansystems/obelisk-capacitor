@@ -153,7 +153,8 @@ try {
       const viewportWidth = await driver.execute(() => window.innerWidth);
       await driver.switchContext('NATIVE_APP');
       try {
-        const nativeWebview = await driver.$('-ios class chain:**/XCUIElementTypeWebView');
+        // Use the viewport container, not nested WebKit accessibility nodes.
+        const nativeWebview = await driver.$('//XCUIElementTypeWebView[not(ancestor::XCUIElementTypeWebView)]');
         const rect = await driver.getElementRect(nativeWebview.elementId);
         const scale = rect.width / viewportWidth;
         const mapped = points.map(({ x, y }) => ({
@@ -347,6 +348,13 @@ try {
       })).catch((e2) => ({ evalFailed: String(e2) }));
       await writeFile(`${ARTIFACTS}/failure-context-${OS}.json`, JSON.stringify({ ctx, dump }, null, 2), 'utf8');
     } catch {}
+    if (OS === 'ios') {
+      // Capture native structure after the DOM dump; the session is ending.
+      try {
+        await driver.switchContext('NATIVE_APP');
+        await writeFile(`${ARTIFACTS}/failure-native-${OS}.xml`, await driver.getPageSource(), 'utf8');
+      } catch {}
+    }
   }
   console.error(`NATIVE-Acceptance-${OS} FAILED:`, e?.message ?? e);
   process.exitCode = 1;

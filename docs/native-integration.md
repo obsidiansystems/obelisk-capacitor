@@ -50,13 +50,13 @@ For local HTTPS testing, use the [counter runner](../examples/counter#run-androi
 ## iOS
 
 Full iOS acceptance remains unverified. In
-[run 40185329931](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40185329931),
-Xcode 26.2 built the app and WebDriverAgent, and Appium launched the app on
-the iPhone 16 / iOS 26.2 simulator. WebKit advertised the counter's inspectable
-page as `process-App`, but Appium's bundle-ID filter excluded that identifier.
-Acceptance stopped before app assertions. The iOS test capabilities now
-include that exact identifier in `additionalWebviewBundleIds`, without a
-wildcard; the correction still needs a hosted acceptance run.
+[run 40200230941](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40200230941),
+Appium attached to the counter WebView on iPhone 16 / iOS 26.2 and the initial
+config assertion passed. The first native gesture stopped because the broad
+WebView selector matched three native elements. The test now requires a
+unique outermost WebView and retains strict matching; this change still needs
+a hosted run. Both captured screenshots were blank despite the live DOM, so
+native rendering and touch acceptance remain unverified.
 Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:
 
@@ -90,6 +90,8 @@ which expects a dylib missing from Xcode 26.2.
 CI keeps the prebooted simulator headless and uses that standalone WDA build.
 Session creation has a ten-minute client deadline and no client retries, so
 a slow startup does not create competing sessions on the same device.
+The iOS WebView allowlist includes `process-App`, the identifier WebKit reports
+for this simulator app, in addition to its normal bundle ID; no wildcard is used.
 
 Check the iOS acceptance step itself, not just the overall workflow status.
 The `ios-evidence` artifact contains build/Appium logs, runtime versions and
@@ -97,6 +99,8 @@ any captured screenshots. The Appium file log includes debug-level WebKit
 discovery details while console output stays at info level. The built app's
 `Info.plist` and `capacitor.config.json` are also collected to check the
 inspection settings actually packaged, not just the source configuration.
+Failures also capture `failure-native-ios.xml` to distinguish nested
+accessibility nodes from independent WebViews and inspect the visible hierarchy.
 `acceptance-ios.json` is emitted only after all assertions pass. The record
 job requires Android acceptance too and preserves iOS as optional. No
 simulator acceptance result is claimed until that evidence is recorded.

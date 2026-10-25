@@ -406,7 +406,7 @@
     "ios": {
       "required": false,
       "recorded": false,
-      "status": "Unverified: run 40185329931 failed WebView discovery on iPhone 16 / iOS 26.2 because WebKit reported process-App outside the driver allowlist; the corrected allowlist awaits hosted acceptance."
+      "status": "Unverified: run 40200230941 attached to the iOS 26.2 WebView and passed initial config, then failed before the first native tap because three native WebViews matched. Screenshots were blank; the narrowed selector awaits hosted verification."
     },
     "android": {
       "required": true,
