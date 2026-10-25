@@ -111,6 +111,33 @@ const waitText = async (driver, sel, want, timeout = 30000) => {
   throw new Error(`timeout: ${sel} wanted ${JSON.stringify(want)}, last ${JSON.stringify(last)}`);
 };
 
+const assertStatusBarClear = async (driver) => {
+  const state = await driver.execute(() => {
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;visibility:hidden;height:env(safe-area-inset-top, 0px)';
+    document.body.append(probe);
+    const inset = probe.getBoundingClientRect().height;
+    probe.remove();
+
+    const app = document.querySelector('.app');
+    const exposed = [];
+    for (const across of [0.25, 0.5, 0.75]) {
+      for (const down of [0.25, 0.5, 0.75]) {
+        const x = window.innerWidth * across;
+        const y = inset * down;
+        const hit = document.elementFromPoint(x, y);
+        if (hit && hit !== app && app.contains(hit)) {
+          exposed.push({ x, y, tag: hit.tagName, id: hit.id });
+        }
+      }
+    }
+    return { inset, scrollY: window.scrollY, exposed };
+  });
+  assert.ok(state.inset > 0, 'iOS status-bar check requires a nonzero safe-area inset');
+  assert.deepEqual(state.exposed, [], `app content exposed in the status-bar area: ${JSON.stringify(state)}`);
+  return state;
+};
+
 let driver;
 let failed = false;
 try {
@@ -240,6 +267,25 @@ try {
     await waitText(driver, '#goal-value', '24');
     await nativeShot('swipe-roundtrip');
 
+    // Protect the status-bar area after vertical scrolling, not just at startup.
+    const { inset } = await assertStatusBarClear(driver);
+    const heading = center(await cssRect('.local-card h2'));
+    const upper = { x: heading.x, y: (heading.y + inset) / 2 };
+    await gesture([heading, upper]);
+    let previousScrollY;
+    await driver.waitUntil(async () => {
+      const y = await driver.execute(() => window.scrollY);
+      const settled = y === previousScrollY;
+      previousScrollY = y;
+      return y > 0 && settled;
+    }, { timeout: 15000, timeoutMsg: 'the page did not scroll vertically' });
+    await assertStatusBarClear(driver);
+    await nativeShot('status-bar-scrolled');
+    await gesture([upper, heading]);
+    await driver.waitUntil(async () => (await driver.execute(() => window.scrollY)) === 0, {
+      timeout: 15000, timeoutMsg: 'the page did not return to the top',
+    });
+
     // Resume the unchanged acceptance sequence from count 0.
     await gesture([center(await cssRect('#counter-reset'))]);
     await waitText(driver, '#count', '0');
@@ -320,6 +366,7 @@ try {
     await waitText(driver, '#count', String(countBefore + 1));
   }
 
+  if (OS === 'ios') await assertStatusBarClear(driver);
   await shot(driver, 'final');
   await writeFile(`${ARTIFACTS}/acceptance-${OS}.json`, JSON.stringify({
     platform: OS,

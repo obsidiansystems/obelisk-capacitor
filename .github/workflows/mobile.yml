@@ -1,8 +1,8 @@
 name: mobile
 
 # Build one portable bundle and exercise it in native WebViews.
-# Android is the required native gate. iOS is opt-in and non-blocking while
-# its Xcode/WebDriverAgent integration remains unverified.
+# Android is the required native gate. iOS Simulator acceptance remains
+# opt-in and non-blocking.
 on:
   pull_request:
   push:

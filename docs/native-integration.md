@@ -61,9 +61,12 @@ hash-route/reload/history, HTTPS backend, native `Device.getInfo()` and
 backend-outage checks also passed.
 
 Native screenshots show the goal ring changing and cards snapped into view.
-Visual limitation: `final-ios.png` shows the header overlapping the status bar
-after the later navigation checks. The passing assertions do not establish
-correct safe-area layout at every scroll position.
+The run's `final-ios.png` exposed header/status-bar overlap after scrolling.
+The counter now keeps an opaque, viewport-fixed background behind that safe
+area. The iOS test adds vertical-scroll and post-navigation checks plus
+`status-bar-scrolled-ios.png`. The regression fails on the old CSS and passes
+on the new CSS in a browser smoke with emulated iOS insets; zero-inset
+rendering is unchanged. Hosted WKWebView confirmation of this fix is pending.
 
 Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:

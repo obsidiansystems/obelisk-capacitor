@@ -18,6 +18,16 @@
   --lime: #d4f58a;
 }
 
+/* Padding scrolls away; the system status-bar background must stay put. */
+:root::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px);
+  background: inherit;
+  z-index: 1;
+}
+
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, input { font: inherit; }
