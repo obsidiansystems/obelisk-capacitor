@@ -50,7 +50,7 @@ For local HTTPS testing, use the [counter runner](../examples/counter#run-androi
 ## iOS
 
 iOS Simulator acceptance passed on iPhone 16 / iOS 26.2 with Xcode 26.2 in
-[run 40234239685](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40234239685).
+[run 40244593661](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40244593661).
 Android passed in the same run. The Linux-built frontend's SHA-256 was
 recomputed and matches both platforms' artifacts and the CI-recorded entries
 in [`compatibility.json`](../compatibility.json).
@@ -60,13 +60,10 @@ and goal 24 preserved through the round trip. The existing config/assets,
 hash-route/reload/history, HTTPS backend, native `Device.getInfo()` and
 backend-outage checks also passed.
 
-Native screenshots show the goal ring changing and cards snapped into view.
-The run's `final-ios.png` exposed header/status-bar overlap after scrolling.
-The counter now keeps an opaque, viewport-fixed background behind that safe
-area. The iOS test adds vertical-scroll and post-navigation checks plus
-`status-bar-scrolled-ios.png`. The regression fails on the old CSS and passes
-on the new CSS in a browser smoke with emulated iOS insets; zero-inset
-rendering is unchanged. Hosted WKWebView confirmation of this fix is pending.
+The counter keeps an opaque, viewport-fixed background behind the status-bar
+safe area. Vertical-scroll and post-navigation checks pass in WKWebView;
+`status-bar-scrolled-ios.png` and `final-ios.png` confirm that scrolling content
+no longer overlaps the status bar.
 
 Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:
@@ -82,15 +79,19 @@ Run `cap add ios` only once. Later frontend changes need a rebuild and sync.
 Capacitor 8 uses Swift Package Manager. Open `mobile/ios/App/App.xcodeproj`
 and select the `App` scheme; no CocoaPods workspace is required.
 
-Hosted simulator acceptance is opt-in and non-blocking. Open the
+Hosted iOS Simulator acceptance runs automatically alongside Android on pull
+requests and pushes to `master`, after the shared Linux bundle succeeds.
+iOS remains non-blocking; Android remains the required native gate. Each run
+uses a macOS runner for the iOS job.
+
+For an extra manual run, open the
 [mobile workflow](https://github.com/obsidiansystems/obelisk-capacitor/actions/workflows/mobile.yml),
-choose **Run workflow**, select `master`, and enable
-**Run the non-blocking iOS Simulator acceptance job**. With Actions write
-permission, the equivalent CLI command is:
+choose **Run workflow**, and select `master`; no iOS checkbox is needed.
+With Actions write permission, the equivalent CLI command is:
 
 ```sh
 gh workflow run mobile.yml --repo obsidiansystems/obelisk-capacitor \
-  --ref master -f run_ios=true
+  --ref master
 ```
 
 The job targets Xcode 26.2 and a fresh iPhone 16 simulator on iOS 26.2,

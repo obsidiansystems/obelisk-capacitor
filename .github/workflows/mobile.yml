@@ -1,18 +1,13 @@
 name: mobile
 
 # Build one portable bundle and exercise it in native WebViews.
-# Android is the required native gate. iOS Simulator acceptance remains
-# opt-in and non-blocking.
+# Both native platforms run automatically. Android is the required gate;
+# iOS remains non-blocking.
 on:
   pull_request:
   push:
     branches: [master]
   workflow_dispatch:
-    inputs:
-      run_ios:
-        description: Run the non-blocking iOS Simulator acceptance job
-        type: boolean
-        default: false
 
 concurrency:
   group: mobile-${{ github.ref }}
@@ -91,7 +86,6 @@ jobs:
           retention-days: 14
 
   ios:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_ios
     continue-on-error: true
     outputs:
       verified: ${{ steps.acceptance.outcome == 'success' }}

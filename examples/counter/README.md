@@ -16,9 +16,9 @@ wraps, kept as the sibling's acceptance reference.
 - `native-backend.nix` builds the test backend from a *downloaded* bundle, so
   native CI never cross-compiles a second frontend.
 
-Android is the required native CI gate. iOS is temporarily opt-in and
-non-blocking (`workflow_dispatch` with `run_ios=true`); its full acceptance
-remains unverified. Passing tuples and run links live in
+Android and iOS acceptance run automatically on pull requests and pushes to
+`master`. Android is the required native CI gate; iOS remains non-blocking.
+Passing tuples and run links live in
 [`compatibility.json`](../../compatibility.json).
 
 The frontend has three swipeable cards: a local counter and goal slider,
