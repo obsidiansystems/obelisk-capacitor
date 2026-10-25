@@ -49,14 +49,22 @@ For local HTTPS testing, use the [counter runner](../examples/counter#run-androi
 
 ## iOS
 
-Full iOS acceptance remains unverified. In
-[run 40200230941](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40200230941),
-Appium attached to the counter WebView on iPhone 16 / iOS 26.2 and the initial
-config assertion passed. The first native gesture stopped because the broad
-WebView selector matched three native elements. The test now requires a
-unique outermost WebView and retains strict matching; this change still needs
-a hosted run. Both captured screenshots were blank despite the live DOM, so
-native rendering and touch acceptance remain unverified.
+iOS Simulator acceptance passed on iPhone 16 / iOS 26.2 with Xcode 26.2 in
+[run 40234239685](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40234239685).
+Android passed in the same run. The Linux-built frontend's SHA-256 was
+recomputed and matches both platforms' artifacts and the CI-recorded entries
+in [`compatibility.json`](../compatibility.json).
+
+Native counter taps, goal drags to 4 and 24, and card swipes passed with count 5
+and goal 24 preserved through the round trip. The existing config/assets,
+hash-route/reload/history, HTTPS backend, native `Device.getInfo()` and
+backend-outage checks also passed.
+
+Native screenshots show the goal ring changing and cards snapped into view.
+Visual limitation: `final-ios.png` shows the header overlapping the status bar
+after the later navigation checks. The passing assertions do not establish
+correct safe-area layout at every scroll position.
+
 Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:
 
@@ -102,8 +110,8 @@ inspection settings actually packaged, not just the source configuration.
 Failures also capture `failure-native-ios.xml` to distinguish nested
 accessibility nodes from independent WebViews and inspect the visible hierarchy.
 `acceptance-ios.json` is emitted only after all assertions pass. The record
-job requires Android acceptance too and preserves iOS as optional. No
-simulator acceptance result is claimed until that evidence is recorded.
+job requires Android acceptance too and preserves iOS as optional; a successful
+build or a green overall workflow alone is not simulator acceptance.
 
 ## Signing
 

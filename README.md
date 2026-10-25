@@ -24,6 +24,9 @@ and JSaddle provides access to native plugins.
   The counter example, running in the Android emulator.
 </p>
 
+Also verified on the iPhone 16 Simulator (iOS 26.2, Xcode 26.2).
+See [iOS evidence and limitations](./docs/native-integration.md#ios).
+
 ## Try the example
 
 From this repository root on x86_64 Linux:
