@@ -76,6 +76,8 @@ const caps = OS === 'ios'
       'appium:noReset': true,
       'appium:autoAcceptAlerts': true,
       'appium:webviewConnectTimeout': 30000,
+      // WebKit reports this simulator app as process-App, not its bundle ID.
+      'appium:additionalWebviewBundleIds': ['process-App'],
       'appium:useNewWDA': true,
       'appium:usePrebuiltWDA': true,
       'appium:derivedDataPath': process.env.WDA_DERIVED_DATA,

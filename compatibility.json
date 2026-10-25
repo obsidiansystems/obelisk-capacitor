@@ -346,7 +346,7 @@
     "ios": {
       "required": false,
       "recorded": false,
-      "status": "Unverified: run 38722838805 built the app and WebDriverAgent with Xcode 26.2 and launched the app on iPhone 16 / iOS 26.2; acceptance failed to discover a WEBVIEW context before app assertions."
+      "status": "Unverified: run 40185329931 failed WebView discovery on iPhone 16 / iOS 26.2 because WebKit reported process-App outside the driver allowlist; the corrected allowlist awaits hosted acceptance."
     },
     "android": {
       "required": true,

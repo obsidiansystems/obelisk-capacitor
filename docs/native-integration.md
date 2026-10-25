@@ -50,10 +50,13 @@ For local HTTPS testing, use the [counter runner](../examples/counter#run-androi
 ## iOS
 
 Full iOS acceptance remains unverified. In
-[run 38722838805](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38722838805),
+[run 40185329931](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/40185329931),
 Xcode 26.2 built the app and WebDriverAgent, and Appium launched the app on
-the iPhone 16 / iOS 26.2 simulator. Acceptance then failed to discover a
-WebView context (`contexts: ["NATIVE_APP"]`), before the app assertions began.
+the iPhone 16 / iOS 26.2 simulator. WebKit advertised the counter's inspectable
+page as `process-App`, but Appium's bundle-ID filter excluded that identifier.
+Acceptance stopped before app assertions. The iOS test capabilities now
+include that exact identifier in `additionalWebviewBundleIds`, without a
+wildcard; the correction still needs a hosted acceptance run.
 Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:
 
