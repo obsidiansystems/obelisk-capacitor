@@ -38,7 +38,8 @@ const appiumArgs = [
   '--address', '127.0.0.1',
   '--port', '4723',
   '--log', `${ARTIFACTS}/appium-${OS}.log`,
-  '--log-level', 'info',
+  // XCUITest reports WebKit discovery failures only at debug level.
+  '--log-level', OS === 'ios' ? 'info:debug' : 'info',
 ];
 if (OS === 'android') appiumArgs.push('--allow-insecure', 'uiautomator2:chromedriver_autodownload');
 

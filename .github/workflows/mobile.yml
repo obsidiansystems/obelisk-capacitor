@@ -253,6 +253,9 @@ jobs:
           cp "$RUNNER_TEMP"/versions-*.txt "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
           cp "$BUNDLE/all.js.sha256" "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
           cp "$BUNDLE/compiler-version.txt" "$RUNNER_TEMP/artifacts/" 2>/dev/null || true
+          if [ -n "${APP:-}" ]; then
+            cp "$APP/Info.plist" "$APP/capacitor.config.json" "$RUNNER_TEMP/artifacts/"
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

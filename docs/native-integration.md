@@ -49,10 +49,11 @@ For local HTTPS testing, use the [counter runner](../examples/counter#run-androi
 
 ## iOS
 
-Full iOS acceptance remains unverified. The app and standalone WebDriverAgent
-built successfully on Xcode 26.2 / iOS 26.2 in
-[run 38696852546](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38696852546),
-but Appium session creation timed out before the app assertions began.
+Full iOS acceptance remains unverified. In
+[run 38722838805](https://github.com/obsidiansystems/obelisk-capacitor/actions/runs/38722838805),
+Xcode 26.2 built the app and WebDriverAgent, and Appium launched the app on
+the iPhone 16 / iOS 26.2 simulator. Acceptance then failed to discover a
+WebView context (`contexts: ["NATIVE_APP"]`), before the app assertions began.
 Development requires macOS and Xcode.
 After building `result-mobile` with `webBundle.js`, add and sync the platform:
 
@@ -89,9 +90,13 @@ a slow startup does not create competing sessions on the same device.
 
 Check the iOS acceptance step itself, not just the overall workflow status.
 The `ios-evidence` artifact contains build/Appium logs, runtime versions and
-touch screenshots; `acceptance-ios.json` is emitted only after all assertions
-pass. The record job requires Android acceptance too and preserves iOS as
-optional. No simulator acceptance result is claimed until that evidence is recorded.
+any captured screenshots. The Appium file log includes debug-level WebKit
+discovery details while console output stays at info level. The built app's
+`Info.plist` and `capacitor.config.json` are also collected to check the
+inspection settings actually packaged, not just the source configuration.
+`acceptance-ios.json` is emitted only after all assertions pass. The record
+job requires Android acceptance too and preserves iOS as optional. No
+simulator acceptance result is claimed until that evidence is recorded.
 
 ## Signing
 

@@ -316,7 +316,7 @@
     "ios": {
       "required": false,
       "recorded": false,
-      "status": "Unverified: Xcode 26.2 app and WebDriverAgent builds passed on iOS 26.2; run 38696852546 timed out creating the Appium session before acceptance."
+      "status": "Unverified: run 38722838805 built the app and WebDriverAgent with Xcode 26.2 and launched the app on iPhone 16 / iOS 26.2; acceptance failed to discover a WEBVIEW context before app assertions."
     },
     "android": {
       "required": true,
